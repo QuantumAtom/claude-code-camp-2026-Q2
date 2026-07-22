@@ -1,0 +1,12 @@
+{
+  "expectations": [
+    {"text": "Agent issued at least one movement command corresponding to a listed exit", "passed": true, "evidence": "summary.md: walked south, south, east, east through 5 rooms following each room's listed Exits"},
+    {"text": "Multiple distinct room descriptions were relayed to the user in plain language", "passed": true, "evidence": "summary.md describes 5 distinct rooms: Temple hall, Temple Square, Market Square, Main Street, and a further Main Street block, each with concrete detail (fountain, cityguard, shops)"},
+    {"text": "If a monster/mob was encountered, the combat outcome is reported; if none, response says so explicitly", "passed": true, "evidence": "summary.md: considered a 'beastly fido' first, fought it with kill, took zero damage, fido fled south after two hits — outcome explicitly reported"},
+    {"text": "No lingering connection to the MUD server (port 4000) or stray background process after the task finishes", "passed": true, "evidence": "Verified independently: `ss -tn | grep :4000` empty, no mud_client.py process running; agent's own status check showed Connected: False"}
+  ],
+  "summary": {"passed": 4, "failed": 0, "total": 4, "pass_rate": 1.0},
+  "execution_metrics": {"total_tool_calls": 20, "errors_encountered": 0},
+  "timing": {"total_duration_seconds": 110.8},
+  "notes": ["Used `consider` before engaging the fido (per references/commands.md guidance) and picked a low-risk encounter on the open street rather than inside a guarded location; ended combat undamaged."]
+}

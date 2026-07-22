@@ -1,0 +1,11 @@
+{
+  "expectations": [
+    {"text": "Agent checked hunger/thirst status (e.g. via score) before taking action", "passed": true, "evidence": "summary.md: 'Ran score. tbaMUD's score screen only prints an explicit You are hungry./You are thirsty. line when those conditions are low — neither line appeared'"},
+    {"text": "Agent took a corrective action appropriate to what was found, or explicitly reports no action needed", "passed": true, "evidence": "summary.md: 'Bottom line: no action was needed... nothing was eaten or bought' — correct, since the with_skill run immediately prior had already resolved hunger/thirst for this shared character"},
+    {"text": "No lingering connection to the MUD server (port 4000) or stray background process after the task finishes", "passed": true, "evidence": "Verified independently: `ss -tn | grep :4000` empty, no stray process; agent's own report confirms verified via ss/ps"}
+  ],
+  "summary": {"passed": 3, "failed": 0, "total": 3, "pass_rate": 1.0},
+  "execution_metrics": {"total_tool_calls": 12, "errors_encountered": 0},
+  "timing": {"total_duration_seconds": 2129.4},
+  "notes": ["Correctly detected no action was needed (character had already been fed/watered by the prior with_skill run on this shared character) rather than eating/drinking unnecessarily.", "Took 2129s wall-clock — roughly 8.5x the with_skill run for the equivalent eval, and far longer than its own token count would suggest (40.5k tokens, similar to with_skill's 46.5k) — almost all of that time was likely spent blocked on socket reads/timeouts in the hand-rolled script rather than doing useful work. This is the most extreme case of the reconnect/latency overhead pattern seen across all three evals."]
+}

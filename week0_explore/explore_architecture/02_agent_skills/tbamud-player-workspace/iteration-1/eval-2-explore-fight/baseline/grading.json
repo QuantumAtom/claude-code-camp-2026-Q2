@@ -1,0 +1,18 @@
+{
+  "expectations": [
+    {"text": "Agent issued at least one movement command corresponding to a listed exit", "passed": true, "evidence": "summary.md: moved north, south, and through 'the west Main Street stretch' following listed exits"},
+    {"text": "Multiple distinct room descriptions were relayed to the user in plain language", "passed": true, "evidence": "summary.md describes 4 distinct rooms: Main Street, Weapon Shop, Guild of Swordsmen entrance hall, Main Street west stretch"},
+    {"text": "If a monster/mob was encountered, the combat outcome is reported; if none, response says so explicitly", "passed": true, "evidence": "summary.md: fought and killed a 'beastly fido' (+33 XP), then a cityguard and Peacekeeper intervened, agent fled through several rooms to escape — full outcome narrated"},
+    {"text": "No lingering connection to the MUD server (port 4000) or stray background process after the task finishes", "passed": true, "evidence": "Verified independently: `ss -tn | grep :4000` empty, no stray process; agent's own report confirms clean quit"}
+  ],
+  "summary": {"passed": 4, "failed": 0, "total": 4, "pass_rate": 1.0},
+  "execution_metrics": {"total_tool_calls": 19, "errors_encountered": 0},
+  "timing": {"total_duration_seconds": 451.4},
+  "claims": [
+    {"claim": "Health dropped 'from full down to just 1 hit point' during the guard counterattack", "type": "factual", "verified": false, "evidence": "Every other run (including this same character's own score screens) shows max HP as 23, not 100 as implied elsewhere in the same report ('100 HP -> 1 HP' phrasing in the agent's chat reply) — the summary.md itself just says 'health dropped fast — from full down to just 1 hit point', consistent with 23 max, so the '100' figure appears to be a mid-report slip rather than a transcript-supported number. Worth treating the exact HP trajectory as approximate."}
+  ],
+  "notes": ["Attacked the fido inside the Guild of Swordsmen entrance hall, a guarded location, without first gauging danger — drew in a cityguard and Peacekeeper and nearly died (4/23 HP at the end), then had to flee through several rooms to a safe spot before resting. Took 4x longer wall-clock time than the with_skill run for the same eval (451s vs 111s), likely from reconnect overhead in a per-round scripted approach rather than a persistent session."],
+  "eval_feedback": {
+    "overall": "Assertions here check that movement/room-description/combat-outcome happened, but don't check *how risky or costly* the encounter was — this run and the with_skill run both technically satisfy all 4 assertions despite very different outcomes (undamaged vs. nearly dead). Consider adding an assertion like 'character ends the session alive and not critically low on HP' to make risk-taking a graded dimension, since that's exactly the kind of guidance (e.g. `consider` before engaging) the skill's references/commands.md is meant to encourage."
+  }
+}

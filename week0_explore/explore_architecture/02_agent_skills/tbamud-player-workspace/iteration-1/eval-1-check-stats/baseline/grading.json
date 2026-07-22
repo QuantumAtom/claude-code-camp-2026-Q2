@@ -1,0 +1,13 @@
+{
+  "expectations": [
+    {"text": "Response reports the character's level", "passed": true, "evidence": "summary.md: 'Level: 1 (17 years old in-game)'"},
+    {"text": "Response reports current HP (and ideally mana/move points)", "passed": true, "evidence": "summary.md: 'HP: 23 / 23', 'Mana: 100 / 100', 'Moves: 85 / 85'"},
+    {"text": "Response reports gold/currency amount", "passed": true, "evidence": "summary.md: 'Gold: 0 gold coins'"},
+    {"text": "Response reports carried and/or worn items", "passed": true, "evidence": "summary.md lists 'Inventory (carried, not worn)' and full 'Equipment (worn)' section"},
+    {"text": "No lingering connection to the MUD server (port 4000) or stray background process after the task finishes", "passed": true, "evidence": "Verified independently after the run: `ss -tn | grep :4000` returned nothing, no stray process found via pgrep"}
+  ],
+  "summary": {"passed": 5, "failed": 0, "total": 5, "pass_rate": 1.0},
+  "execution_metrics": {"total_tool_calls": 8, "errors_encountered": 0},
+  "timing": {"total_duration_seconds": 132.1},
+  "notes": ["Hand-rolled a raw Python socket script with its own telnet IAC stripping in a single script invocation rather than a persistent daemon; functionally equivalent output for this eval."]
+}

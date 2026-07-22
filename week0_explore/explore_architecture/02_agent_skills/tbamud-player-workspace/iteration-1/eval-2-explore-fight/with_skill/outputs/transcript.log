@@ -1,0 +1,123 @@
+
+Attempting to Detect Client, Please Wait...
+
+[H[J[1;31m[[1;31mClient[1;31m] [0;37mUnknown[0;00m | [1;31m[[1;31mColors[1;31m] [0;37mAnsi[0;00m | [1;31m[[1;31mMXP[1;31m] [0;37mNo[0;00m | [1;31m[[1;31mMSDP[1;31m] [0;37mNo[0;00m | [1;31m[[1;31mATCP[1;31m] [0;37mNo[0;00m
+
+                               T  B  A  M  U  D
+                                   2 0 2 5 
+
+   Based on CircleMUD by Jeremy Elson and DikuMUD by Hans-Henrik Staerfeldt,
+        Katja Nyboe, Tom Madsen, Michael Seifert, and Sebastian Hammer
+
+By what name do you wish to be known? Password: 
+      Welcome to
+                               T  B  A  M   U   D
+                         D E V E L O P M E N T  P O R T
+        Please be brutal with the bug, idea, and typo commands. -- Rumble
+
+*** PRESS RETURN: 
+Welcome to tbaMUD!
+0) Exit from tbaMUD.
+1) Enter the game.
+2) Enter description.
+3) Read the background story.
+4) Change password.
+5) Delete this character.
+
+   Make your choice: 
+Welcome to tbaMUD!  May your visit here be... Enlightening
+
+[0;33mThe Temple Of Midgaard[0m
+   You are in the southern end of the temple hall in the Temple of Midgaard.
+The temple has been constructed from giant marble blocks, eternal in
+appearance, and most of the walls are covered by ancient wall paintings
+picturing Gods, giants and peasants.
+   Large steps lead down through the grand temple gate, descending the huge
+mound upon which the temple is built and ends on the temple square below.
+To the west, you see the Reading Room.  The donation room is in a small
+alcove to your east.
+[0;36m[ Exits: n e s w d ][0m
+[0;32m[0;32mAn automatic teller machine has been installed in the wall here.
+[0m
+23H 100M 85V (motd) > Huh!?!
+
+23H 100M 85V (motd) > 
+A booming voice announces, 'Welcome Dummy to the realm!'
+
+23H 100M 85V (motd) > [0;33mThe Temple Of Midgaard[0m
+   You are in the southern end of the temple hall in the Temple of Midgaard.
+The temple has been constructed from giant marble blocks, eternal in
+appearance, and most of the walls are covered by ancient wall paintings
+picturing Gods, giants and peasants.
+   Large steps lead down through the grand temple gate, descending the huge
+mound upon which the temple is built and ends on the temple square below.
+To the west, you see the Reading Room.  The donation room is in a small
+alcove to your east.
+[0;36m[ Exits: n e s w d ][0m
+[0;32m[0;32mAn automatic teller machine has been installed in the wall here.
+[0m
+23H 100M 85V (motd) > [0;33mThe Temple Square[0m
+   You are standing on the temple square.  Huge marble steps lead up to the
+temple gate.  The entrance to the Clerics' Guild is to the west, and the old
+Grunting Boar Inn, is to the east.  Just south of here you see the market
+square, the center of Midgaard.
+[0;36m[ Exits: n e s w ][0m
+[0;32m[0;32mA large fountain carved from blue-streaked marble is here, bubbling merrily.
+[0m
+23H 100M 84V (motd) > [0;33mMarket Square[0m
+   You are standing on the market square, the famous Square of Midgaard.
+A large, peculiar looking statue is standing in the middle of the square.
+Roads lead in every direction, north to the temple square, south to the
+common square, east and westbound is the main street.
+[0;36m[ Exits: n e s w ][0m
+[0;33mA cityguard stands here.
+[0m
+23H 100M 83V (motd) > 
+The cityguard leaves east.
+
+23H 100M 83V (motd) > [0;33mMain Street[0m
+   You are on the main street crossing through town.  To the north is the
+general store, and the main street continues east.  To the west you see and
+hear the market place, to the south a small door leads into the Pet Shop.
+[0;36m[ Exits: n e s w ][0m
+[0;33mA cityguard stands here.
+[0m
+23H 100M 82V (motd) > [0;33mMain Street[0m
+   The main street, to the north is the weapon shop and to the south is the
+Guild of Swordsmen.  To the east you leave town and to the west the street
+leads to the market square.
+[0;36m[ Exits: n e s w ][0m
+[0;33mA beastly fido is mucking through the garbage looking for food here.
+[0m
+23H 100M 81V (motd) > The perfect match!
+
+23H 100M 81V (motd) > [0;33mYou lunge at the beastly fido without managing to pierce him.
+[0m
+23H 100M 81V (motd) > 
+[0;31mThe beastly fido tries to bite you but bites his tongue instead!
+[0mYou pierce the beastly fido.
+[0m
+23H 100M 81V (motd) > 
+[0;31mThe beastly fido tries to bite you but bites his tongue instead!
+[0m[0;33mYou lunge at the beastly fido without managing to pierce him.
+[0m
+23H 100M 81V (motd) > 
+[0;31mThe beastly fido tries to bite you but bites his tongue instead!
+[0mYou barely pierce the beastly fido.
+[0mThe beastly fido panics, and attempts to flee!
+The beastly fido leaves south.
+
+23H 100M 81V (motd) > You are 17 years old.
+You have 23(23) hit, 100(100) mana and 81(85) movement points.
+Your armor class is 29/10, and your alignment is 29.
+You have 122 exp, 0 gold coins, and 0 questpoints.
+You need 1878 exp to reach your next level.
+You have earned 0 quest points.
+You have completed 0 quests, and you are not on a quest at the moment.
+You have been playing for 0 days and 0 hours.
+This ranks you as Dummy the Swordpupil (level 1).
+You are standing.
+You are hungry.
+You are thirsty.
+
+23H 100M 81V (motd) > 

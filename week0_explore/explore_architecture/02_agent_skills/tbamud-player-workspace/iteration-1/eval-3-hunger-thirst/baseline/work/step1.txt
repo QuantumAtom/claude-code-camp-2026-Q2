@@ -1,0 +1,5 @@
+1	dummy
+1	helloworld
+1
+2	score
+1	inventory

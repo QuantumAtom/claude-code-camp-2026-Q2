@@ -1,0 +1,54 @@
+{
+  "skill_name": "tbamud-player",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Connect to my tbaMUD game at localhost:4000 and give me a rundown of my character — level, HP/mana/moves, gold, and what I'm currently carrying and wearing. Then log off.",
+      "expected_output": "A clean summary of the dummy character's current stats and inventory, gathered via score/inventory/equipment commands, with the session disconnected cleanly at the end.",
+      "files": [],
+      "assertions": [
+        "Response reports the character's level",
+        "Response reports current HP (and ideally mana/move points)",
+        "Response reports gold/currency amount",
+        "Response reports carried and/or worn items",
+        "No lingering connection to the MUD server (port 4000) or stray background process after the task finishes"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Explore around from wherever my MUD character currently is — walk through a few rooms, tell me what you see, and if you run into any monster along the way go ahead and fight it. Log off when you're done exploring.",
+      "expected_output": "The character moves through multiple rooms via valid exits, room descriptions are relayed in plain language, any combat encountered is handled (fight or flee) with the outcome reported, and the session ends disconnected cleanly.",
+      "files": [],
+      "assertions": [
+        "Agent issued at least one movement command corresponding to a listed exit (e.g. north/south/east/west/up/down)",
+        "Multiple distinct room descriptions were relayed to the user in plain language",
+        "If a monster/mob was encountered, the combat outcome (won/fled/died) is reported; if none was encountered, the response says so explicitly rather than staying silent",
+        "No lingering connection to the MUD server (port 4000) or stray background process after the task finishes"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "My MUD character might be hungry or thirsty by now — check and take care of it if so (eat/drink whatever's needed, buying something if nothing's on hand), then disconnect.",
+      "expected_output": "Agent checks score for hunger/thirst warnings, resolves them via eat/drink/buy commands as appropriate for whatever the character actually has or is near, and disconnects cleanly at the end.",
+      "files": [],
+      "assertions": [
+        "Agent checked hunger/thirst status (e.g. via score) before taking action",
+        "Agent took a corrective action (eat/drink/buy) appropriate to what the check actually found, or explicitly reports no action was needed",
+        "No lingering connection to the MUD server (port 4000) or stray background process after the task finishes"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Keep working toward my MUD goals — pick up wherever the character left off, keep grinding toward level 7, and see if you can make progress finding or fighting whatever monster we were targeting. Log off when you've made some progress.",
+      "expected_output": "Agent reads data/player.md and data/world.md at the start of the session to recover the existing goal(s) and prior map/character state rather than starting blind, plays a stretch of the game consistent with that continuation (not re-picking a brand new unrelated goal), then updates both files before disconnecting cleanly — merging new information into world.md rather than discarding the existing map, and reflecting current progress in player.md's Goals section.",
+      "files": [],
+      "assertions": [
+        "Agent reads data/player.md and/or data/world.md before acting, and its response reflects awareness of prior state (e.g. prior goal, level, or location) rather than treating this as a fresh start",
+        "data/player.md still contains a Goals section after the session, with status reflecting this session's actual progress (not deleted, not left stale/unchanged if progress was made)",
+        "data/world.md's previously-recorded rooms/map are still present after the session (new discoveries merged in rather than the file being wholesale overwritten or emptied)",
+        "Response to the user summarizes progress made this session in plain language",
+        "No lingering connection to the MUD server (port 4000) or stray background process after the task finishes"
+      ]
+    }
+  ]
+}

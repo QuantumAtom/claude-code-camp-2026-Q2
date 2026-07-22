@@ -1,0 +1,11 @@
+{
+  "eval_id": 2,
+  "eval_name": "explore-fight",
+  "prompt": "Explore around from wherever my MUD character currently is — walk through a few rooms, tell me what you see, and if you run into any monster along the way go ahead and fight it. Log off when you're done exploring.",
+  "assertions": [
+    "Agent issued at least one movement command corresponding to a listed exit (e.g. north/south/east/west/up/down)",
+    "Multiple distinct room descriptions were relayed to the user in plain language",
+    "If a monster/mob was encountered, the combat outcome (won/fled/died) is reported; if none was encountered, the response says so explicitly rather than staying silent",
+    "No lingering connection to the MUD server (port 4000) or stray background process after the task finishes"
+  ]
+}

@@ -1,0 +1,7 @@
+1	dummy
+1	helloworld
+1
+2	eat
+1	drink
+1	look
+1	quit
