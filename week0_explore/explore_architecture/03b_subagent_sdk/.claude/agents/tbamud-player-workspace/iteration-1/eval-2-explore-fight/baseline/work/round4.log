@@ -1,0 +1,101 @@
+
+Attempting to Detect Client, Please Wait...
+
+[H[J[1;31m[[1;31mClient[1;31m] [0;37mUnknown[0;00m | [1;31m[[1;31mColors[1;31m] [0;37mAnsi[0;00m | [1;31m[[1;31mMXP[1;31m] [0;37mNo[0;00m | [1;31m[[1;31mMSDP[1;31m] [0;37mNo[0;00m | [1;31m[[1;31mATCP[1;31m] [0;37mNo[0;00m
+
+                               T  B  A  M  U  D
+                                   2 0 2 5 
+
+   Based on CircleMUD by Jeremy Elson and DikuMUD by Hans-Henrik Staerfeldt,
+        Katja Nyboe, Tom Madsen, Michael Seifert, and Sebastian Hammer
+
+By what name do you wish to be known? 
+>>> SEND: dummy
+Password: 
+>>> SEND: helloworld
+
+Reconnecting.
+
+23H 100M 80V (motd) > 
+>>> SEND: east
+[0;33mMain Street[0m
+   The main street, to the north is the weapon shop and to the south is the
+Guild of Swordsmen.  To the east you leave town and to the west the street
+leads to the market square.
+[0;36m[ Exits: n e s w ][0m
+[0;33mA Peacekeeper is standing here, ready to jump in at the first sign of trouble.
+[0m
+23H 100M 79V (motd) > 
+>>> SEND: south
+[0;33mThe Entrance Hall To The Guild Of Swordsmen[0m
+   The entrance hall to the Guild of Swordsmen.  A place where one has to be
+careful not to say something wrong (or right).  To the east is the bar and to
+the north is the main street.
+[0;36m[ Exits: n e ][0m
+[0;32m[0;32mAn automatic teller machine has been installed in the wall here.
+[0m[0;33mA beastly fido is mucking through the garbage looking for food here.
+[0m[0;33mA cityguard stands here.
+[0m[0;33mA knight is guarding the entrance.
+[0m
+23H 100M 78V (motd) > 
+>>> SEND: kill fido
+[0;33mYou try to pierce the beastly fido but pierce the air instead!
+[0m
+23H 100M 78V (motd) > 
+[0;31mThe beastly fido tries to bite you but bites his tongue instead!
+[0m[0;33mYou lunge at the beastly fido without managing to pierce him.
+[0m
+23H 100M 78V (motd) > 
+[0;31mThe beastly fido snaps his teeth at you fiercely but misses.
+[0m[0;33mYou try to pierce the beastly fido but pierce the air instead!
+[0m
+23H 100M 78V (motd) > 
+The cityguard jumps to the aid of the beastly fido!
+[0;31mYou manage to dodge the cityguard's slash and laugh, HA!
+[0mThe Peacekeeper has arrived.
+The Peacekeeper jumps to the aid of the beastly fido!
+[0;31mWhat a stroke of luck, the Peacekeeper seems to have missed you with his thrash!
+[0mThe Peacekeeper thrashes you.
+[0mThat really did HURT!
+[0;31mThe cityguard's slash misses you by a mile.
+[0m[0;31mThe beastly fido tries to bite you but bites his tongue instead!
+[0mYou barely pierce the beastly fido.
+[0mThe beastly fido is stunned, but will probably regain consciousness again.
+
+17H 100M 78V (motd) > 
+[0;31mWhat a stroke of luck, the Peacekeeper seems to have missed you with his thrash!
+[0m[0;31mYou easily avoid a slash from the cityguard.
+[0m[0;33mYou successfully pierce the beastly fido and his dead body falls to the ground in a lifeless heap.
+[0mThe beastly fido is dead!  R.I.P.
+You receive 33 experience points.
+Your blood freezes as you hear the beastly fido's death cry.
+
+17H 100M 78V (motd) > 
+[0;31mWhat a stroke of luck, the Peacekeeper seems to have missed you with his thrash!
+[0mThe cityguard slashes you.
+[0m
+12H 100M 78V (motd) > 
+[0;33mYou lunge at the Peacekeeper without managing to pierce him.
+[0m[0;31mWhat a stroke of luck, the Peacekeeper seems to have missed you with his thrash!
+[0mThe cityguard slashes you.
+[0mThat really did HURT!
+
+6H 100M 78V (motd) > 
+[0;33mYou lunge at the Peacekeeper without managing to pierce him.
+[0m[0;31mWhat a stroke of luck, the Peacekeeper seems to have missed you with his thrash!
+[0m[0;31mYou manage to dodge the cityguard's slash and laugh, HA!
+[0m
+6H 100M 78V (motd) > 
+>>> SEND: look
+[0;33mThe Entrance Hall To The Guild Of Swordsmen[0m
+   The entrance hall to the Guild of Swordsmen.  A place where one has to be
+careful not to say something wrong (or right).  To the east is the bar and to
+the north is the main street.
+[0;36m[ Exits: n e ][0m
+[0;32m[0;32mAn automatic teller machine has been installed in the wall here.
+[0m[0;32m[0;32mThe corpse of the beastly fido is lying here.
+[0m[0;33mThe Peacekeeper is here, fighting YOU!
+[0m[0;33mThe cityguard is here, fighting YOU!
+[0m[0;33mA knight is guarding the entrance.
+[0m
+6H 100M 78V (motd) > 

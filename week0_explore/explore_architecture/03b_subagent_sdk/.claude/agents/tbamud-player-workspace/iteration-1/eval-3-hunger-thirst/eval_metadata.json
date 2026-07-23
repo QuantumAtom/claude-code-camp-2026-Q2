@@ -1,0 +1,10 @@
+{
+  "eval_id": 3,
+  "eval_name": "hunger-thirst",
+  "prompt": "My MUD character might be hungry or thirsty by now — check and take care of it if so (eat/drink whatever's needed, buying something if nothing's on hand), then disconnect.",
+  "assertions": [
+    "Agent checked hunger/thirst status (e.g. via score) before taking action",
+    "Agent took a corrective action (eat/drink/buy) appropriate to what the check actually found, or explicitly reports no action was needed",
+    "No lingering connection to the MUD server (port 4000) or stray background process after the task finishes"
+  ]
+}

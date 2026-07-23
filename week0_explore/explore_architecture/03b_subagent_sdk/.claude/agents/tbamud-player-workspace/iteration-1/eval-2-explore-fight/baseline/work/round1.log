@@ -1,0 +1,27 @@
+
+Attempting to Detect Client, Please Wait...
+
+[H[J[1;31m[[1;31mClient[1;31m] [0;37mUnknown[0;00m | [1;31m[[1;31mColors[1;31m] [0;37mAnsi[0;00m | [1;31m[[1;31mMXP[1;31m] [0;37mNo[0;00m | [1;31m[[1;31mMSDP[1;31m] [0;37mNo[0;00m | [1;31m[[1;31mATCP[1;31m] [0;37mNo[0;00m
+
+                               T  B  A  M  U  D
+                                   2 0 2 5 
+
+   Based on CircleMUD by Jeremy Elson and DikuMUD by Hans-Henrik Staerfeldt,
+        Katja Nyboe, Tom Madsen, Michael Seifert, and Sebastian Hammer
+
+By what name do you wish to be known? 
+>>> SEND: dummy
+Password: 
+>>> SEND: helloworld
+
+Reconnecting.
+
+23H 100M 81V (motd) > 
+>>> SEND: look
+[0;33mMain Street[0m
+   The main street, to the north is the weapon shop and to the south is the
+Guild of Swordsmen.  To the east you leave town and to the west the street
+leads to the market square.
+[0;36m[ Exits: n e s w ][0m
+
+23H 100M 81V (motd) > 

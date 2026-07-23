@@ -53,8 +53,7 @@ I had claude with the tbamud-skill document player and world information in a da
 
 So the agent skill checks in with me as to what to do. I told it to do what it wants. It is taking a cautious approach by going to get food and drink. Interesting that it kept fighting when it was working on its own, but more cautious when having to describe what to do.
 
-So with that caution, the massive minotaur was killed at level 3. This may have been due to luck as after reviewing the fight, the "dummy" character missed a lot of the Minotaur's blows. I am having it write the details in the player.md and world.md files.
-
+So with that caution, the massive minotaur was killed at level 3. This may have been due to luck as after reviewing the fight, the "dummy" character missed a lot of the Minotaur's blows. I am having it write the details in the player.md and world.md files
 ## Technical Conclusions
 
 - Claude code generally takes a stronger approach when it is not documenting in real time. 
@@ -62,3 +61,19 @@ So with that caution, the massive minotaur was killed at level 3. This may have 
 - It was able to complete the task with probably 30k-40k tokens using Sonnet
 - Giving specific instructions is key. When I told the agent to print to /data/world.md and /data/player.md, it tried to do generate and write those files within the agent skills folder. 
 - Claude skills directory can be placed anywhere and then use a symbolic link to .claude/skills folder.
+
+## 03a Subagent skill - file-based
+
+- Noticable the agent started immediately dealing with hunger and upskilling.
+- Concurrently running skills is a bit of a myth. It send Dummy to his swordmen guild and Smarty to magic guild afterward.
+- Both agent skills and subagent provide similar functionality
+- I can have both logged in at the same time, but Claude (and maybe other agents) will only run one command at a time, switching between subagents.
+- The subagents can read both skills and then pass it to the main agent who will tell me both their ages, mana, and max movements
+- Probably should get separate memory for each subagent
+- This increases model usage and cost. Could be a major factor with frontier models like Fable.
+
+### 03b Subagent skill - Claude SDK for Python
+- Both agents are starting the same time, less asyncronous. 
+- Originally it just did a check on the users. I had Claude redo the Python code to allow interactive experience
+- Parallel agents work, but I had to reask several times using Python Claude Agent SDK. Perhaps need to be more specific
+- The file-based system is cleaner and easier, but Python Agent SDK is good for complexity.

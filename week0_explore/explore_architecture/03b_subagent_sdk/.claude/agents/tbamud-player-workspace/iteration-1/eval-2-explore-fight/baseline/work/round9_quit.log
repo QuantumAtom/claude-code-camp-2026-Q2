@@ -1,0 +1,33 @@
+
+Attempting to Detect Client, Please Wait...
+
+[H[J[1;31m[[1;31mClient[1;31m] [0;37mUnknown[0;00m | [1;31m[[1;31mColors[1;31m] [0;37mAnsi[0;00m | [1;31m[[1;31mMXP[1;31m] [0;37mNo[0;00m | [1;31m[[1;31mMSDP[1;31m] [0;37mNo[0;00m | [1;31m[[1;31mATCP[1;31m] [0;37mNo[0;00m
+
+                               T  B  A  M  U  D
+                                   2 0 2 5 
+
+   Based on CircleMUD by Jeremy Elson and DikuMUD by Hans-Henrik Staerfeldt,
+        Katja Nyboe, Tom Madsen, Michael Seifert, and Sebastian Hammer
+
+By what name do you wish to be known? 
+>>> SEND: dummy
+Password: 
+>>> SEND: helloworld
+
+Reconnecting.
+
+4H 100M 79V (motd) > 
+>>> SEND: quit
+Goodbye, friend.. Come back soon!
+
+4H 100M 79V (motd) > 
+
+Welcome to tbaMUD!
+0) Exit from tbaMUD.
+1) Enter the game.
+2) Enter description.
+3) Read the background story.
+4) Change password.
+5) Delete this character.
+
+   Make your choice: 

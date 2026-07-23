@@ -1,0 +1,34 @@
+
+Attempting to Detect Client, Please Wait...
+
+[H[J[1;31m[[1;31mClient[1;31m] [0;37mUnknown[0;00m | [1;31m[[1;31mColors[1;31m] [0;37mAnsi[0;00m | [1;31m[[1;31mMXP[1;31m] [0;37mNo[0;00m | [1;31m[[1;31mMSDP[1;31m] [0;37mNo[0;00m | [1;31m[[1;31mATCP[1;31m] [0;37mNo[0;00m
+
+                               T  B  A  M  U  D
+                                   2 0 2 5 
+
+   Based on CircleMUD by Jeremy Elson and DikuMUD by Hans-Henrik Staerfeldt,
+        Katja Nyboe, Tom Madsen, Michael Seifert, and Sebastian Hammer
+
+By what name do you wish to be known? 
+>>> SEND: dummy
+Password: 
+>>> SEND: helloworld
+
+Reconnecting.
+
+4H 100M 79V (motd) > 
+>>> SEND: score
+You are 17 years old.
+You have 4(23) hit, 100(100) mana and 79(85) movement points.
+Your armor class is 29/10, and your alignment is 39.
+You have 171 exp, 0 gold coins, and 0 questpoints.
+You need 1829 exp to reach your next level.
+You have earned 0 quest points.
+You have completed 0 quests, and you are not on a quest at the moment.
+You have been playing for 0 days and 0 hours.
+This ranks you as Dummy the Swordpupil (level 1).
+You are resting.
+You are hungry.
+You are thirsty.
+
+4H 100M 79V (motd) > 

@@ -1,0 +1,96 @@
+
+----- BANNER -----
+
+Attempting to Detect Client, Please Wait...
+
+[H[J[1;31m[[1;31mClient[1;31m] [0;37mUnknown[0;00m | [1;31m[[1;31mColors[1;31m] [0;37mAnsi[0;00m | [1;31m[[1;31mMXP[1;31m] [0;37mNo[0;00m | [1;31m[[1;31mMSDP[1;31m] [0;37mNo[0;00m | [1;31m[[1;31mATCP[1;31m] [0;37mNo[0;00m
+
+                               T  B  A  M  U  D
+                                   2 0 2 5 
+
+   Based on CircleMUD by Jeremy Elson and DikuMUD by Hans-Henrik Staerfeldt,
+        Katja Nyboe, Tom Madsen, Michael Seifert, and Sebastian Hammer
+
+By what name do you wish to be known? 
+----- after name -----
+Password: 
+----- after password -----
+
+Reconnecting.
+
+23H 100M 84V (motd) > 
+----- after blank (motd continue) -----
+23H 100M 84V (motd) > 
+You are hungry.
+You are thirsty.
+
+23H 100M 85V (motd) > 
+----- score -----
+You are 17 years old.
+You have 23(23) hit, 100(100) mana and 85(85) movement points.
+Your armor class is 29/10, and your alignment is 29.
+You have 113 exp, 0 gold coins, and 0 questpoints.
+You need 1887 exp to reach your next level.
+You have earned 0 quest points.
+You have completed 0 quests, and you are not on a quest at the moment.
+You have been playing for 0 days and 1 hour.
+This ranks you as Dummy the Swordpupil (level 1).
+You are standing.
+You are hungry.
+You are thirsty.
+
+23H 100M 85V (motd) > 
+----- inventory -----
+You are carrying:
+a small sword
+[0m
+23H 100M 85V (motd) > 
+----- equipment -----
+You are using:
+<used as light>      a candle
+<worn on finger>     a leather ring
+<worn on finger>     a leather ring
+<worn around neck>   a leather gorget
+<worn around neck>   a leather gorget
+<worn on body>       a breast plate
+<worn on head>       a leather cap
+<worn on legs>       a pair of bronze leggings
+<worn on feet>       a pair of leather boots
+<worn on hands>      a pair of leather gloves
+<worn on arms>       a pair of leather sleeves
+<worn as shield>     a shield
+<worn about body>    a brown leather cape
+<worn about waist>   an old leather belt
+<worn around wrist>  a leather wristguard
+<worn around wrist>  a leather wristguard
+<wielded>            a dagger
+<held>               a metal staff
+
+23H 100M 85V (motd) > 
+----- quit -----
+Goodbye, friend.. Come back soon!
+
+23H 100M 85V (motd) > 
+
+Welcome to tbaMUD!
+0) Exit from tbaMUD.
+1) Enter the game.
+2) Enter description.
+3) Read the background story.
+4) Change password.
+5) Delete this character.
+
+   Make your choice: 
+----- confirm quit (if prompted) -----
+
+That's not a menu choice!
+
+Welcome to tbaMUD!
+0) Exit from tbaMUD.
+1) Enter the game.
+2) Enter description.
+3) Read the background story.
+4) Change password.
+5) Delete this character.
+
+   Make your choice: 

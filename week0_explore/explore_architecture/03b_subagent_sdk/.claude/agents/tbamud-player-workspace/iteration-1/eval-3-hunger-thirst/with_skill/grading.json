@@ -1,0 +1,11 @@
+{
+  "expectations": [
+    {"text": "Agent checked hunger/thirst status (e.g. via score) before taking action", "passed": true, "evidence": "summary.md: 'I connected to the MUD as dummy and checked your status with score. Found: You were both hungry and thirsty...'"},
+    {"text": "Agent took a corrective action appropriate to what was found, or explicitly reports no action needed", "passed": true, "evidence": "summary.md: drank from a free public fountain to clear thirst, sold a spare unequipped sword for gold, bought and ate bread at the Bakery to clear hunger; final score showed no warnings"},
+    {"text": "No lingering connection to the MUD server (port 4000) or stray background process after the task finishes", "passed": true, "evidence": "Verified independently: `ss -tn | grep :4000` empty, no mud_client.py process; agent's own status check confirmed disconnected"}
+  ],
+  "summary": {"passed": 3, "failed": 0, "total": 3, "pass_rate": 1.0},
+  "execution_metrics": {"total_tool_calls": 60, "errors_encountered": 0},
+  "timing": {"total_duration_seconds": 251.9},
+  "notes": ["Character actually was hungry/thirsty with low HP (4/23) at the start of this run (inherited from the baseline near-death encounter in eval 2); resolved via free fountain water plus selling a spare item to afford bread, rather than assuming gold was available."]
+}

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -e
+
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+source "$ROOT/.venv/bin/activate"
+cd "$(dirname "$0")/../../python/00_config"
+python3 examples/example.py

@@ -1,0 +1,128 @@
+{
+  "metadata": {
+    "skill_name": "tbamud-player",
+    "skill_path": "/home/marc/code/ccc/claude-code-camp-2026-Q2/week0_explore/explore_architecture/02_agent_skills/tbamud-player",
+    "executor_model": "claude-sonnet-5",
+    "analyzer_model": "claude-sonnet-5",
+    "timestamp": "2026-07-17T16:00:00Z",
+    "evals_run": [1, 2, 3],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "check-stats",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 120.2, "tokens": 33018, "tool_calls": 15, "errors": 0},
+      "expectations": [
+        {"text": "Response reports the character's level", "passed": true, "evidence": "summary.md: 'Level: 1'"},
+        {"text": "Response reports current HP (and ideally mana/move points)", "passed": true, "evidence": "summary.md: 'HP: 23 / 23', 'Mana: 100 / 100'"},
+        {"text": "Response reports gold/currency amount", "passed": true, "evidence": "summary.md: 'Gold: 0 gold coins'"},
+        {"text": "Response reports carried and/or worn items", "passed": true, "evidence": "summary.md lists inventory and full equipment"},
+        {"text": "No lingering connection or stray process after the task finishes", "passed": true, "evidence": "ss/pgrep verified clean after run"}
+      ],
+      "notes": ["Used mud_client.py start/send/status/stop loop exactly as documented, single persistent session."]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "check-stats",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 5, "failed": 0, "total": 5, "time_seconds": 132.1, "tokens": 29856, "tool_calls": 8, "errors": 0},
+      "expectations": [
+        {"text": "Response reports the character's level", "passed": true, "evidence": "summary.md: 'Level: 1 (17 years old in-game)'"},
+        {"text": "Response reports current HP (and ideally mana/move points)", "passed": true, "evidence": "summary.md: 'HP: 23 / 23', 'Mana: 100 / 100'"},
+        {"text": "Response reports gold/currency amount", "passed": true, "evidence": "summary.md: 'Gold: 0 gold coins'"},
+        {"text": "Response reports carried and/or worn items", "passed": true, "evidence": "summary.md lists inventory and equipment"},
+        {"text": "No lingering connection or stray process after the task finishes", "passed": true, "evidence": "ss/pgrep verified clean after run"}
+      ],
+      "notes": ["Hand-rolled a raw Python socket script with its own telnet IAC stripping; single script invocation, functionally equivalent output for this eval."]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "explore-fight",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4, "time_seconds": 110.8, "tokens": 34958, "tool_calls": 20, "errors": 0},
+      "expectations": [
+        {"text": "Agent issued at least one movement command corresponding to a listed exit", "passed": true, "evidence": "walked south, south, east, east through 5 rooms"},
+        {"text": "Multiple distinct room descriptions were relayed in plain language", "passed": true, "evidence": "5 distinct rooms described with concrete detail"},
+        {"text": "Combat outcome reported if a monster was encountered", "passed": true, "evidence": "considered then fought a beastly fido, took zero damage, it fled"},
+        {"text": "No lingering connection or stray process after the task finishes", "passed": true, "evidence": "ss/pgrep verified clean after run"}
+      ],
+      "notes": ["Used `consider` before engaging (per references/commands.md) and picked a low-risk encounter on the open street; ended combat undamaged."]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "explore-fight",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 4, "failed": 0, "total": 4, "time_seconds": 451.4, "tokens": 47327, "tool_calls": 19, "errors": 0},
+      "expectations": [
+        {"text": "Agent issued at least one movement command corresponding to a listed exit", "passed": true, "evidence": "moved north, south, west through 4 rooms"},
+        {"text": "Multiple distinct room descriptions were relayed in plain language", "passed": true, "evidence": "4 distinct rooms described"},
+        {"text": "Combat outcome reported if a monster was encountered", "passed": true, "evidence": "killed a fido, but guards intervened and nearly killed the character; full outcome narrated"},
+        {"text": "No lingering connection or stray process after the task finishes", "passed": true, "evidence": "ss/pgrep verified clean after run"}
+      ],
+      "notes": [
+        "Attacked the fido inside the Guild of Swordsmen entrance hall (a guarded location) without gauging danger first — drew in a cityguard and Peacekeeper, dropped to 4/23 HP, had to flee several rooms to safety.",
+        "Took ~4x longer wall-clock than the with_skill run for the same eval (451s vs 111s), consistent with reconnect overhead from a per-round scripted approach rather than a persistent session.",
+        "Eval feedback: assertions here don't grade risk/outcome quality — both configs pass all 4 despite one run ending undamaged and the other nearly dead. Consider adding an assertion like 'character ends alive and not critically low on HP' to make this a graded dimension."
+      ]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "hunger-thirst",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 251.9, "tokens": 46509, "tool_calls": 60, "errors": 0},
+      "expectations": [
+        {"text": "Agent checked hunger/thirst status before acting", "passed": true, "evidence": "checked score, found hungry+thirsty with low HP (4/23)"},
+        {"text": "Agent took a corrective action appropriate to what was found", "passed": true, "evidence": "drank free fountain water, sold spare sword, bought and ate bread; final score clean"},
+        {"text": "No lingering connection or stray process after the task finishes", "passed": true, "evidence": "ss/pgrep verified clean after run"}
+      ],
+      "notes": ["Character inherited a genuinely hungry/thirsty, low-HP (4/23) state from the prior baseline near-death encounter; resolved via free water plus selling a spare item to afford food rather than assuming gold was on hand."]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "hunger-thirst",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {"pass_rate": 1.0, "passed": 3, "failed": 0, "total": 3, "time_seconds": 2129.4, "tokens": 40567, "tool_calls": 12, "errors": 0},
+      "expectations": [
+        {"text": "Agent checked hunger/thirst status before acting", "passed": true, "evidence": "ran score, correctly noted neither warning line appeared"},
+        {"text": "Agent took a corrective action appropriate to what was found", "passed": true, "evidence": "correctly reported no action was needed, since the prior with_skill run had already resolved it for this shared character"},
+        {"text": "No lingering connection or stray process after the task finishes", "passed": true, "evidence": "ss/pgrep verified clean after run"}
+      ],
+      "notes": [
+        "Correctly detected no action was needed rather than eating/drinking unnecessarily.",
+        "Took 2129s wall-clock — ~8.5x the with_skill run for the equivalent eval, despite similar token counts (40.5k vs 46.5k) — nearly all of it was likely time blocked on socket reads/timeouts in the hand-rolled reconnect script, not productive work. The most extreme case of the reconnect-latency pattern seen across all three evals."
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 160.97, "stddev": 78.89, "min": 110.8, "max": 251.9},
+      "tokens": {"mean": 38161.67, "stddev": 7293.8, "min": 33018, "max": 46509}
+    },
+    "without_skill": {
+      "pass_rate": {"mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0},
+      "time_seconds": {"mean": 904.3, "stddev": 1072.9, "min": 132.1, "max": 2129.4},
+      "tokens": {"mean": 39250.0, "stddev": 8809.7, "min": 29856, "max": 47327}
+    },
+    "delta": {
+      "pass_rate": "+0.00",
+      "time_seconds": "-743.3",
+      "tokens": "-1088"
+    }
+  },
+  "notes": [
+    "Pass rate is 100% for both configurations on all 3 evals — these assertions check whether the right game actions happened and are satisfied by both a careful hand-rolled telnet script and the bundled skill, since tbaMUD gives clear textual feedback either way. They are NOT discriminating on content quality; the real signal in this benchmark is time and (in eval 2) risk-taking.",
+    "Time is the standout differential: with_skill averaged 161s vs 904s for without_skill (a >5.5x difference driven mostly by eval 3's 2129s outlier). In every eval the without_skill run was slower, because each baseline run either reconnected per round or paid extra socket-negotiation/timeout overhead that the skill's persistent background daemon avoids entirely.",
+    "Eval 3 (hunger-thirst) has the highest variance for without_skill (2129s vs a 132-451s range on the other two evals) — this looks like a real cost of the hand-rolled approach (blocking on socket timeouts) rather than pure flakiness, since eval 3 baseline also had the fewest tool calls (12) for by far the longest time.",
+    "In eval 2, the without_skill run attacked a monster inside a guarded location without checking danger first and nearly died (4/23 HP, had to flee several rooms), while the with_skill run explicitly used `consider` (documented in the skill's references/commands.md) and picked a safer fight, ending undamaged. Pass/fail didn't capture this difference — worth adding an outcome-safety assertion in a future iteration.",
+    "Tokens are roughly comparable between configurations (~38k vs ~39k mean) — the skill's advantage here is wall-clock time and safer play, not token efficiency."
+  ]
+}

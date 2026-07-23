@@ -1,0 +1,12 @@
+{
+  "eval_id": 1,
+  "eval_name": "check-stats",
+  "prompt": "Connect to my tbaMUD game at localhost:4000 and give me a rundown of my character — level, HP/mana/moves, gold, and what I'm currently carrying and wearing. Then log off.",
+  "assertions": [
+    "Response reports the character's level",
+    "Response reports current HP (and ideally mana/move points)",
+    "Response reports gold/currency amount",
+    "Response reports carried and/or worn items",
+    "No lingering connection to the MUD server (port 4000) or stray background process after the task finishes"
+  ]
+}
