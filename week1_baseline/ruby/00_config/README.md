@@ -112,7 +112,6 @@ Expected output (values from your `.boukensha/`):
 
 ```
 === Boukensha Step 0: Configuration ===
-
 Config dir:     /home/andrew/Sites/Claude-Code-Camp/.boukensha
 Tasks:          player
 
@@ -129,3 +128,7 @@ API key set?    true
 
 #<Boukensha::Config dir=/home/andrew/Sites/Claude-Code-Camp/.boukensha tasks=player>
 ```
+## Considerations
+These are thing we saw but didn't fix as that would break future steps
+- We have a default hard-coded prompt instead of a prompt scoped on tasks, ex. prompts/<task>/system.md
+- Our settings file should take .yml and .yaml, but now is strictly .yaml
