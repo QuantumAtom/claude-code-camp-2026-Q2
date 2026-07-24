@@ -148,7 +148,7 @@ MUD user:       dummy
 
 API key set?    True
 
-<Boukensha::Config dir=/home/andrew/Sites/Claude-Code-Camp/.boukensha tasks=player>
+#<Boukensha::Config dir=/home/andrew/Sites/Claude-Code-Camp/.boukensha tasks=player>
 ```
 
 (Booleans print as `True`/`False` — Python's native spelling — everything

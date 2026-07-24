@@ -11,9 +11,6 @@ class Config:
     #   2. ~/.boukensha  (default)
     DEFAULT_DIR = str(Path.home() / ".boukensha")
 
-    # Default prompts shipped alongside this package.
-    PROMPTS_DIR = str(Path(__file__).resolve().parent.parent / "prompts")
-
     def __init__(self):
         self.dir = self._resolve_dir()
         self._load_env()
