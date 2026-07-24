@@ -9,8 +9,11 @@ class PromptBuilder:
     def to_tools(self):
         return self.backend.to_tools(self.context.tools)
 
-    def to_api_payload(self, max_output_tokens=1024):
-        return self.backend.to_payload(self.context, max_output_tokens=max_output_tokens)
+    def to_api_payload(self, max_output_tokens=1024, tools=None):
+        return self.backend.to_payload(self.context, max_output_tokens=max_output_tokens, tools=tools)
+
+    def parse_response(self, response):
+        return self.backend.parse_response(response)
 
     def headers(self):
         return self.backend.headers()

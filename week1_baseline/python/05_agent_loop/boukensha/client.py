@@ -25,14 +25,16 @@ class Client:
     def __init__(self, builder):
         self.builder = builder
 
-    def call(self, max_output_tokens=1024):
+    def call(self, max_output_tokens=1024, tools=None):
         parsed = urlparse(self.builder.url())
         path = parsed.path or "/"
         if parsed.query:
             path = f"{path}?{parsed.query}"
 
         headers = self.builder.headers()
-        body = json.dumps(self.builder.to_api_payload(max_output_tokens=max_output_tokens))
+        body = json.dumps(
+            self.builder.to_api_payload(max_output_tokens=max_output_tokens, tools=tools)
+        )
 
         attempts = 0
         response = None

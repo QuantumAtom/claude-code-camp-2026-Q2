@@ -60,12 +60,12 @@ class Anthropic(Base):
             for tool in tools.values()
         ]
 
-    def to_payload(self, context, max_output_tokens=1024):
+    def to_payload(self, context, max_output_tokens=1024, tools=None):
         return {
             "model": self.model,
             "system": context.system,
             "max_tokens": max_output_tokens,
-            "tools": self.to_tools(context.tools),
+            "tools": self.to_tools(context.tools) if tools is None else tools,
             "messages": self.to_messages(context.messages),
         }
 
@@ -78,3 +78,7 @@ class Anthropic(Base):
 
     def url(self):
         return self.BASE_URL
+
+    def parse_response(self, response):
+        stop_reason = "tool_use" if response.get("stop_reason") == "tool_use" else "end_turn"
+        return {"stop_reason": stop_reason, "content": response.get("content") or []}

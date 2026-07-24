@@ -39,7 +39,7 @@ class Gemini(Base):
         result = []
         for msg in messages:
             if msg.role == "assistant":
-                result.append({"role": "model", "parts": [{"text": msg.content}]})
+                result.append({"role": "model", "parts": self._assistant_parts(msg.content)})
             elif msg.role == "tool_result":
                 result.append({
                     "role": "user",
@@ -73,11 +73,11 @@ class Gemini(Base):
             ]
         }]
 
-    def to_payload(self, context, max_output_tokens=1024):
+    def to_payload(self, context, max_output_tokens=1024, tools=None):
         return {
             "systemInstruction": {"parts": [{"text": context.system}]},
             "contents": self.to_messages(context.messages),
-            "tools": self.to_tools(context.tools),
+            "tools": self.to_tools(context.tools) if tools is None else tools,
             "generationConfig": {"maxOutputTokens": max_output_tokens},
         }
 
@@ -89,3 +89,34 @@ class Gemini(Base):
 
     def url(self):
         return f"{self.BASE_URL}/{self.model}:generateContent"
+
+    def parse_response(self, response):
+        candidates = response.get("candidates") or []
+        parts = candidates[0].get("content", {}).get("parts", []) if candidates else []
+
+        content = []
+        tool_used = False
+        for part in parts:
+            if part.get("functionCall"):
+                fc = part["functionCall"]
+                content.append({
+                    "type": "tool_use",
+                    "id": fc.get("name"),
+                    "name": fc.get("name"),
+                    "input": fc.get("args") or {},
+                })
+                tool_used = True
+            elif part.get("text"):
+                content.append({"type": "text", "text": part["text"]})
+
+        return {"stop_reason": "tool_use" if tool_used else "end_turn", "content": content}
+
+    def _assistant_parts(self, content):
+        blocks = [{"type": "text", "text": content}] if isinstance(content, str) else content
+        parts = []
+        for b in blocks:
+            if b.get("type") == "tool_use":
+                parts.append({"functionCall": {"name": b["name"], "args": b["input"]}})
+            else:
+                parts.append({"text": b["text"]})
+        return parts

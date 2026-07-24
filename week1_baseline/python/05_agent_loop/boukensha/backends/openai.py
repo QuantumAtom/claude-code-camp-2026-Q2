@@ -1,3 +1,5 @@
+import json
+
 from .base import Base
 
 
@@ -35,6 +37,8 @@ class OpenAI(Base):
                     "tool_call_id": msg.tool_use_id,
                     "content": msg.content,
                 })
+            elif msg.role == "assistant":
+                conversation.append(self._assistant_message(msg.content))
             else:
                 conversation.append({"role": str(msg.role), "content": msg.content})
         return system_message + conversation
@@ -56,11 +60,11 @@ class OpenAI(Base):
             for tool in tools.values()
         ]
 
-    def to_payload(self, context, max_output_tokens=1024):
+    def to_payload(self, context, max_output_tokens=1024, tools=None):
         return {
             "model": self.model,
             "messages": self.to_messages(context.system, context.messages),
-            "tools": self.to_tools(context.tools),
+            "tools": self.to_tools(context.tools) if tools is None else tools,
             "max_completion_tokens": max_output_tokens,
         }
 
@@ -72,3 +76,39 @@ class OpenAI(Base):
 
     def url(self):
         return self.BASE_URL
+
+    def parse_response(self, response):
+        choices = response.get("choices") or []
+        message = choices[0].get("message", {}) if choices else {}
+        tool_calls = message.get("tool_calls") or []
+
+        content = []
+        if message.get("content"):
+            content.append({"type": "text", "text": message["content"]})
+        for tc in tool_calls:
+            function = tc.get("function", {})
+            content.append({
+                "type": "tool_use",
+                "id": tc.get("id"),
+                "name": function.get("name"),
+                "input": json.loads(function.get("arguments") or "{}"),
+            })
+
+        return {"stop_reason": "tool_use" if tool_calls else "end_turn", "content": content}
+
+    def _assistant_message(self, content):
+        blocks = [{"type": "text", "text": content}] if isinstance(content, str) else content
+        text_blocks = [b for b in blocks if b.get("type") == "text"]
+        tool_blocks = [b for b in blocks if b.get("type") == "tool_use"]
+
+        message: dict = {"role": "assistant", "content": "".join(b["text"] for b in text_blocks)}
+        if tool_blocks:
+            message["tool_calls"] = [
+                {
+                    "id": b["id"],
+                    "type": "function",
+                    "function": {"name": b["name"], "arguments": json.dumps(b["input"])},
+                }
+                for b in tool_blocks
+            ]
+        return message

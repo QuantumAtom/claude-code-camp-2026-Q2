@@ -1,5 +1,8 @@
 from pathlib import Path
 
+DEFAULT_MAX_ITERATIONS = 25
+DEFAULT_MAX_OUTPUT_TOKENS = 1024
+
 
 class Base:
     @classmethod
@@ -39,6 +42,19 @@ class Base:
     @classmethod
     def system_prompt(cls, settings, user_prompts_dir=None, default_prompts_dir=None):
         return cls.prompt(settings, "system", user_prompts_dir=user_prompts_dir, default_prompts_dir=default_prompts_dir)
+
+    @classmethod
+    def max_iterations(cls, settings):
+        return cls._integer_setting(settings, "max_iterations", DEFAULT_MAX_ITERATIONS)
+
+    @classmethod
+    def max_output_tokens(cls, settings):
+        return cls._integer_setting(settings, "max_output_tokens", DEFAULT_MAX_OUTPUT_TOKENS)
+
+    @classmethod
+    def _integer_setting(cls, settings, key, default):
+        value = cls._fetch(settings, key)
+        return default if value is None else int(value)
 
     @classmethod
     def _fetch(cls, settings, key):
