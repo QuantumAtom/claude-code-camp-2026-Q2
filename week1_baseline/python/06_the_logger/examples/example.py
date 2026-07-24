@@ -11,6 +11,7 @@ from boukensha.registry import Registry
 from boukensha.prompt_builder import PromptBuilder
 from boukensha.client import Client
 from boukensha.agent import Agent
+from boukensha.logger import Logger
 from boukensha.backends.anthropic import Anthropic
 from boukensha.backends.gemini import Gemini
 from boukensha.backends.ollama import Ollama
@@ -49,11 +50,15 @@ else:
 
 builder = PromptBuilder(ctx, backend)
 client = Client(builder)
+# Writes structured JSONL events to .boukensha/sessions/<session-id>.jsonl.
+# Call boukensha.debug() to include the full raw API response in those lines.
+logger = Logger()
 agent = Agent(
     context=ctx,
     registry=registry,
     builder=builder,
     client=client,
+    logger=logger,
     task_settings=player_settings,
 )
 
@@ -76,7 +81,7 @@ ctx.add_message(
     "Read the README.md file and summarise what this MUD player assistant framework can do.",
 )
 
-print("=== BOUKENSHA Step 5: Agent Loop ===")
+print("=== BOUKENSHA Step 6: The Logger ===")
 print()
 print(f"Config: {config}")
 print(f"Provider: {provider}")

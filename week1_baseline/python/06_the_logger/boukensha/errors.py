@@ -8,7 +8,3 @@ class UnsupportedModelError(Exception):
 
 class ApiError(Exception):
     pass
-
-
-class LoopError(Exception):
-    pass

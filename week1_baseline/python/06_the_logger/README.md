@@ -1,10 +1,11 @@
-# 05 · The Agent Loop (Python)
+# 06 · The Logger (Python)
 
-Python port of [`week1_baseline/ruby/05_agent_loop`](../../ruby/05_agent_loop/README.md).
+Python port of [`week1_baseline/ruby/06_the_logger`](../../ruby/06_the_logger/README.md).
 
-The Agent Loop is the heart of BOUKENSHA. Everything built before this — the
-structs, the registry, the prompt builder, the client — was setup. The loop
-is where the agent actually does work.
+`Logger` records each agent run as structured JSON Lines. It is a file
+logger, not user-facing display output — every phase of the agent loop
+(iterations, prompts, tool calls, responses) is written to a session file
+under `.boukensha/sessions/`.
 
 ## Environment setup
 
@@ -14,37 +15,42 @@ once, then install this step's dependencies:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r week1_baseline/python/05_agent_loop/requirements.txt
+pip install -r week1_baseline/python/06_the_logger/requirements.txt
 ```
 
 ## New files
 
 | File | Description |
 |---|---|
-| `boukensha/agent.py` | The agent loop — sends requests, dispatches tools, and knows when to stop |
+| `boukensha/logger.py` | `Logger` — writes structured JSONL events for each agent run |
 
 ## Updated files
 
 | File | Change |
 |---|---|
-| `boukensha/errors.py` | Added `LoopError` (unused for now — see "Considerations" below) |
-| `boukensha/tasks/base.py` | Added `max_iterations`/`max_output_tokens` settings helpers, with `DEFAULT_MAX_ITERATIONS = 25` and `DEFAULT_MAX_OUTPUT_TOKENS = 1024` |
-| `boukensha/client.py` | `call()` gains a `tools=None` param, threaded into the payload |
-| `boukensha/prompt_builder.py` | `to_api_payload()` gains `tools=None`; added `parse_response()`, delegating to the backend |
-| `boukensha/backends/*.py` | Every backend gains a `tools=None` override on `to_payload` and a new `parse_response()`; every backend but Anthropic also gains a private `_assistant_message`/`_assistant_parts` rebuild helper |
+| `boukensha/agent.py` | Logs every loop phase via `self.logger`; a raising tool no longer crashes the turn — it's caught, logged as a `tool_result` with `ok=False`, and surfaced to the model as an `"ERROR: ..."` result |
+| `boukensha/__init__.py` | Added `config()`, `quiet()`, `loud()`, `is_quiet()`, `debug()`, `is_debug()` module-level functions |
+| `boukensha/errors.py` | `LoopError` removed |
+| `boukensha/config.py` | `mud_*` properties removed |
+| `examples/example.py` | Wires up a `Logger` and passes it into `Agent` |
 
-## How it works
+## How the loop works
 
 ```
 send messages to API
         ↓
 stop_reason == "tool_use"?
     yes → extract tool calls
-        → dispatch each tool via Registry
+        → dispatch each tool via Registry (errors caught, logged, and
+          surfaced to the model instead of raising)
         → inject results as tool_result messages
         → go back to top
     no  → return final text response
 ```
+
+Every step of this — the iteration count, the outgoing prompt, each tool
+call/result, and each model response — is now written to the session log
+as it happens. See "Session logs" below.
 
 ## `Agent`
 
@@ -86,6 +92,80 @@ call a unique `id`, echoed back in the `tool_result`. Ollama, Ollama Cloud,
 and Gemini don't assign call ids at all — those backends reuse the tool's
 `name` as its `id` and match the `tool_result` back to the call by name.
 
+## Session logs
+
+Each `Logger` instance creates a session id and writes one log file for that session:
+
+```text
+.boukensha/sessions/<session-id>.jsonl
+```
+
+Every line is a complete JSON object with `session_id`, `at`, and `phase` fields, plus phase-specific data. This keeps logs grep/tail friendly and machine readable.
+
+```json
+{"phase":"session_start","session_id":"20260528T143011Z-a1b2c3d4","at":"2026-05-28T10:30:11-04:00"}
+{"phase":"iteration","n":1,"max":25,"session_id":"20260528T143011Z-a1b2c3d4","at":"2026-05-28T10:30:11-04:00"}
+```
+
+`response`-phase lines include the active task, provider, model, normalized token counts, and estimated USD cost when the backend has token pricing data:
+
+```json
+{"phase":"response","task":"player","provider":"anthropic","model":"claude-haiku-4-5","input_tokens":1000,"output_tokens":100,"cost_usd":0.0015}
+```
+
+A run's `phase` sequence looks like: `session_start`, then per iteration
+`iteration` → `prompt` → (`raw`, if debug is enabled) → `response` →
+(`tool_call`/`tool_result` pairs, if the model called tools) → ... →
+final `response` → `turn_end`.
+
+## `Logger`
+
+| Method | Phase | Logs |
+|---|---|---|
+| `iteration(n=, max=)` | `iteration` | loop counter |
+| `limit_reached(kind=, n=, max=)` | `limit_reached` | iteration ceiling hit |
+| `prompt(messages=, tools=)` | `prompt` | messages, tool names |
+| `tool_call(name=, args=)` | `tool_call` | tool name and arguments |
+| `tool_result(name=, result=, ok=, error=)` | `tool_result` | tool result, success/failure |
+| `response(text=, usage=, stop_reason=, task=, backend=)` | `response` | response text, token usage, task/provider/model, estimated cost |
+| `raw(data=)` | `raw` | raw provider response, only when `boukensha.debug()` is enabled |
+| `turn_end(reason=, iterations=, tokens=)` | `turn_end` | why/when the turn ended |
+| `close()` | — | closes the underlying file handle |
+
+Default usage:
+
+```python
+logger = Logger()
+agent = Agent(context=ctx, registry=registry, builder=builder,
+              client=client, logger=logger, task_settings=player_settings)
+```
+
+You can also provide a session id or override the destination directory:
+
+```python
+Logger(session_id="manual-session")
+Logger(dir="/tmp/boukensha-sessions")
+```
+
+For compatibility, `log=` still accepts an explicit file path, but normal
+iteration usage should write under `.boukensha/sessions`.
+
+If no `logger=` is passed to `Agent`, it constructs its own default
+`Logger()` — `Agent.__init__` deliberately uses `logger=None` rather than a
+literal `logger=Logger()` default, since a literal default is evaluated
+once at class-definition time and would share a single `Logger` (and its
+open file) across every `Agent` instance.
+
+## Debug events
+
+Call `boukensha.debug()` before constructing/running the agent to include
+raw provider responses in the log:
+
+```python
+import boukensha
+boukensha.debug()
+```
+
 ## Task configuration
 
 This step uses the task-based configuration introduced in the earlier
@@ -112,7 +192,7 @@ Every backend still takes a `model=` keyword argument; `examples/example.py`
 gets both provider and model from `tasks.player`, then builds the matching
 backend. The backend validates the model at construction time and exposes
 metadata such as `context_window`, `usage_unit`, and token cost estimates
-for later logging steps.
+used by the logger's cost estimation.
 
 | Provider | Backend | Requires |
 |---|---|---|
@@ -138,7 +218,7 @@ backend = OllamaCloud(api_key=os.environ["OLLAMA_API_KEY"], model="kimi-k2.5:clo
 Running the example produces output like this:
 
 ```
-=== BOUKENSHA Step 5: Agent Loop ===
+=== BOUKENSHA Step 6: The Logger ===
 
 Config: #<Boukensha::Config dir=/path/to/repo/.boukensha tasks=player>
 Provider: anthropic
@@ -146,19 +226,20 @@ Model: claude-haiku-4-5
 Max iterations: 25
 Max output tokens: 1024
 
-[iteration 1/25]
-  tool call → list_directory({'path': '.'})
-  tool result → README.md, examples, boukensha, prompts, requirements.txt
-
-[iteration 2/25]
-  tool call → read_file({'path': 'README.md'})
-  tool result → # 05 · The Agent Loop (Python)...
-
 === FINAL RESPONSE ===
 This is BOUKENSHA, a MUD player assistant framework. It can...
 ```
 
+...while `.boukensha/sessions/<session-id>.jsonl` fills in with the
+`iteration`/`prompt`/`response`/`tool_call`/`tool_result`/`turn_end`
+sequence for the run — see "Session logs" above for the exact shape.
+
 ## Considerations
+
+**A raising tool no longer crashes the turn.** `Agent._handle_tool_calls`
+wraps each tool dispatch in a `try`/`except`; a raising tool is logged as a
+`tool_result` with `ok=False` and `error` set, and the model sees an
+`"ERROR: ..."` string as the result instead of the turn aborting.
 
 **The assistant message must be stored before the tool result.** The
 Anthropic API requires the assistant's tool_use block to appear in the
@@ -180,19 +261,16 @@ instead of raising.
 `stop_reason: "end_turn"`. `Agent` watches for that signal and exits the
 loop. The agent never decides unilaterally to stop.
 
-**`LoopError` is defined but unused.** It's carried over from the Ruby port
-for parity — a future step may start raising it, and this keeps the two
-codebases in sync in the meantime. The actual "runaway agent" protection
-today is `_wrap_up`, not an exception.
-
 ## Considerations (carried over)
 
 - Settings files must use `.yaml`, not `.yml`.
 - No persistent memory or context compaction — the loop keeps appending
   messages for the whole turn; long-running turns grow the context
   unbounded within the `max_iterations` ceiling. That's a later step.
-- No cost/usage logging wired into the loop yet, even though backends
-  already expose `estimate_cost`/`context_window`.
+- `quiet()`/`loud()`/`is_quiet()` are wired up but nothing reads them yet —
+  ported for parity with Ruby, not used until a later step.
+- The logger's file handle is never closed automatically (no
+  context-manager protocol) — `close()` exists but nothing calls it.
 
 ## Files
 
@@ -203,19 +281,20 @@ today is `_wrap_up`, not an exception.
 | `boukensha/message.py` | `Message` dataclass |
 | `boukensha/context.py` | `Context` container |
 | `boukensha/registry.py` | `Registry` — registers and dispatches tools |
-| `boukensha/errors.py` | `UnknownToolError`, `UnsupportedModelError`, `ApiError`, `LoopError` |
+| `boukensha/errors.py` | `UnknownToolError`, `UnsupportedModelError`, `ApiError` |
 | `boukensha/tasks/` | Stateless task classes |
 | `boukensha/prompt_builder.py` | `PromptBuilder` — delegates serialization/parsing to a backend |
 | `boukensha/backends/` | Per-provider payload/message/tool serialization and response normalization |
 | `boukensha/client.py` | `Client` — sends the payload and parses the response |
 | `boukensha/agent.py` | `Agent` — the tool-calling loop |
+| `boukensha/logger.py` | `Logger` — structured JSONL session logging |
 | `prompts/system.md` | Default system prompt |
 | `examples/example.py` | Runnable smoke test — makes real, potentially multiple API calls |
 
 ## Run example
 
 ```bash
-./week1_baseline/bin/python/05_agent_loop
+./week1_baseline/bin/python/06_the_logger
 ```
 
 This builds the backend named by `tasks.player.provider` in

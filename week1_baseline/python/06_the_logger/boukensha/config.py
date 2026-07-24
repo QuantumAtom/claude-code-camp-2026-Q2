@@ -32,24 +32,6 @@ class Config:
     def user_prompts_dir(self):
         return str(Path(self.dir) / "prompts")
 
-    # ---------- MUD connection ---------------------------------------------
-
-    @property
-    def mud_host(self):
-        return self.dig("mud", "host") or "localhost"
-
-    @property
-    def mud_port(self):
-        return self.dig("mud", "port") or 4000
-
-    @property
-    def mud_username(self):
-        return self.dig("mud", "username")
-
-    @property
-    def mud_password(self):
-        return self.dig("mud", "password")
-
     # ---------- low-level helpers -------------------------------------------
 
     # Fetch a nested key path from settings, e.g. dig("mud", "host")
