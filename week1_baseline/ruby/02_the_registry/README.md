@@ -75,3 +75,4 @@ This translation is a real gotcha in production harnesses, BOUKENSHA makes it vi
 ```sh
 ./week1_baseline/bin/01_the_registry 
 ```
+

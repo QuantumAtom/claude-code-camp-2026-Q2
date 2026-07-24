@@ -1,7 +1,7 @@
 tasks:
   player:
-    provider: anthropic        # provider name (string)
-    model: claude-haiku-4-5
+    provider: gemini        # provider name (string)
+    model: "gemini-3.1-flash-lite"
     prompt_override:
       system: true
 mud:
