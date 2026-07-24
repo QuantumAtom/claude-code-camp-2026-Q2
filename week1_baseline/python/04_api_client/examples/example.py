@@ -10,6 +10,7 @@ from boukensha.tasks.player import Player
 from boukensha.context import Context
 from boukensha.registry import Registry
 from boukensha.prompt_builder import PromptBuilder
+from boukensha.client import Client
 from boukensha.backends.anthropic import Anthropic
 from boukensha.backends.gemini import Gemini
 from boukensha.backends.ollama import Ollama
@@ -30,28 +31,22 @@ ctx = Context(task=Player, system=system_prompt)
 registry = Registry(ctx)
 
 registry.tool(
-    "look",
-    "Look around the current room for details",
-    {},
-    lambda: "A damp stone corridor stretches north. Torches flicker on the walls.",
+    "read_file",
+    "Read the contents of a file from disk",
+    {"path": {"type": "string", "description": "The file path to read"}},
+    lambda path: Path(path).read_text(),
 )
 
 registry.tool(
-    "move",
-    "Move the player in a direction (north, south, east, west, up, down)",
-    {"direction": {"type": "string", "description": "The direction to move"}},
-    lambda direction: f"You move {direction} into a torch-lit corridor.",
+    "list_directory",
+    "List files in a directory",
+    {"path": {"type": "string", "description": "The directory path to list"}},
+    lambda path: "\n".join(f for f in os.listdir(path) if not f.startswith(".")),
 )
 
-ctx.add_message("user", "I just arrived in the dungeon. What's around me, and can you move north?")
-ctx.add_message("assistant", "Let me take a look around first.")
-ctx.add_message(
-    "tool_result",
-    "A damp stone corridor stretches north. Torches flicker on the walls.",
-    tool_use_id="toolu_01X",
-)
+ctx.add_message("user", "What files are in the current directory?")
 
-print("=== BOUKENSHA Step 3: Prompt Builder ===")
+print("=== BOUKENSHA Step 4: API Client ===")
 
 provider = Player.provider(player_settings)
 model = Player.model(player_settings)
@@ -70,9 +65,15 @@ else:
     raise ValueError(f"Unsupported provider for player task: {provider}")
 
 builder = PromptBuilder(ctx, backend)
+client = Client(builder)
 
 print()
 print(f"Config: {config}")
 print(f"Provider: {provider}")
 print(f"Model: {model}")
-print(json.dumps(builder.to_api_payload(), indent=2))
+print(f"Sending request to {builder.url()}...")
+print()
+
+response = client.call()
+print("Raw response:")
+print(json.dumps(response, indent=2))

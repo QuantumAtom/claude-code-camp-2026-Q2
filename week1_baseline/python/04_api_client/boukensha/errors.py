@@ -4,3 +4,7 @@ class UnknownToolError(Exception):
 
 class UnsupportedModelError(Exception):
     pass
+
+
+class ApiError(Exception):
+    pass

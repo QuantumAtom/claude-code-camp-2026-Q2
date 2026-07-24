@@ -10,14 +10,14 @@ class Base:
     def provider(cls, settings):
         value = cls._fetch(settings, "provider")
         if value is None:
-            raise ValueError(f"tasks.{cls.task_name()}.provider is required in settings.yml")
+            raise ValueError(f"tasks.{cls.task_name()}.provider is required in settings.yaml")
         return value
 
     @classmethod
     def model(cls, settings):
         value = cls._fetch(settings, "model")
         if value is None:
-            raise ValueError(f"tasks.{cls.task_name()}.model is required in settings.yml")
+            raise ValueError(f"tasks.{cls.task_name()}.model is required in settings.yaml")
         return value
 
     @classmethod
@@ -42,6 +42,8 @@ class Base:
 
     @classmethod
     def _fetch(cls, settings, key):
+        if not isinstance(settings, dict):
+            return None
         return settings.get(key)
 
     @classmethod

@@ -1,27 +1,10 @@
-# 03 · The Prompt Builder (Python)
+# 04 · The API Client (Python)
 
-Python port of [`week1_baseline/ruby/03_prompt_builder`](../../ruby/03_prompt_builder/README.md).
+Python port of [`week1_baseline/ruby/04_api_client`](../../ruby/04_api_client/README.md).
 
-Because LLM access, cost, and quality are constantly changing, we want to be
-able to switch between multiple LLMs that will drive the agent loop.
-
-There are several SDKs that provide access to many LLMs but in practice we
-only really need to focus on top-tier models:
-- anthropic family
-- openai family
-- gemini family
-- ollama cloud eg. kimi, minimax, llama
-
-The Prompt Builder serializes `Context` into the exact format each API
-expects. `PromptBuilder` delegates to whichever backend you pass in.
-
-`PromptBuilder` does not call the API — it only prepares the payload, headers,
-and URL for the eventual HTTP call. (An API-calling module comes in a later
-step.)
-
-Configuration is task-based here, carried forward from the registry step. The
-`player` task owns its provider, model, and prompt override settings, and the
-context records the task that the prompt is being built for.
+The API Client takes the payload assembled by `PromptBuilder` and sends it to
+the API. One HTTP POST, one response. No tool loop yet — just proving the
+round trip works.
 
 ## Environment setup
 
@@ -31,181 +14,120 @@ once, then install this step's dependencies:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r week1_baseline/python/03_prompt_builder/requirements.txt
+pip install -r week1_baseline/python/04_api_client/requirements.txt
 ```
 
 ## New files
 
 | File | Description |
 |---|---|
-| `boukensha/prompt_builder.py` | Delegates serialization to the active backend |
-| `prompts/system.md` | Default system prompt used when a task does not override it |
-| `boukensha/backends/base.py` | Shared backend contract for model validation and model metadata |
-| `boukensha/backends/anthropic.py` | Serializes context into the Anthropic API format |
-| `boukensha/backends/ollama.py` | Serializes context into the Ollama API format |
-| `boukensha/backends/ollama_cloud.py` | Serializes context into the Ollama Cloud API format |
-| `boukensha/backends/openai.py` | Serializes context into the OpenAI Chat Completions format |
-| `boukensha/backends/gemini.py` | Serializes context into the Gemini `generateContent` format |
+| `boukensha/client.py` | Makes the HTTP request and parses the response |
+| `boukensha/backends/base.py` | Shared backend model validation and model metadata helpers |
+| `boukensha/tasks/base.py` | Shared task configuration helpers for provider, model, and prompts |
+| `boukensha/tasks/player.py` | Player task definition |
+| `prompts/system.md` | Default system prompt used when the player task does not override it |
+
+## Updated files
+
+| File | Change |
+|---|---|
+| `boukensha/errors.py` | Added `ApiError` for failed HTTP requests |
+| `boukensha/tasks/base.py` | Error messages now say `settings.yaml` (not `settings.yml`); `_fetch` guards against non-dict `settings` |
+| `prompts/system.md` | New default prompt text (CircleMUD framing, was the earlier "MUD player assistant" wording) |
+| `boukensha/backends/*.py` | Unchanged from Step 3 — already own supported model tables with context windows and cost metadata |
 
 ## How it works
 
 ```
-Context (Python objects)
-        ↓
 PromptBuilder
-        ↓
-Backend (Anthropic, OpenAI, Gemini, or Ollama)
-        ↓
-API payload (plain dicts and lists)
-        ↓
-POST to API
+      ↓
+Client
+      ↓
+POST to API endpoint
+      ↓
+Raw JSON response
 ```
 
-## `PromptBuilder`
+## `Client`
 
 | Method | Description |
 |---|---|
-| `to_messages()` | Delegates message serialization to the backend |
-| `to_tools()` | Delegates tool serialization to the backend |
-| `to_api_payload(max_output_tokens=1024)` | Assembles the complete payload ready to POST |
-| `headers()` | Returns the correct headers for the backend |
-| `url()` | Returns the correct endpoint URL for the backend |
+| `call(max_output_tokens=1024)` | POSTs the payload and returns the parsed JSON response |
 
-## Backends
+`Client` retries transient network failures and a fixed set of retryable
+HTTP status codes (`408, 409, 429, 500, 502, 503, 504`) with exponential
+backoff (`0.5s, 1s, 2s`), up to 3 retries (4 attempts total). If every
+attempt fails — or the final response still isn't 2xx — it raises
+`ApiError` with the attempt count and either the underlying exception or the
+response status/body.
 
-Each API has its own conventions for how data is expected. Anthropic and
-Gemini are the most alike (system prompt as a top-level field), while OpenAI
-and Ollama share the same `function`-wrapped tool schema.
+## Task configuration
 
-Backends also own their supported model table. A backend refuses to
-initialize with an unknown model, so `settings.yaml` cannot silently select
-an unsupported or misspelled model, raising `UnsupportedModelError` instead.
-Each model entry carries:
+This step uses the task-based configuration introduced in the earlier
+steps:
 
-| Key | Meaning |
-|---|---|
-| `context_window` | The model's known token context window |
-| `cost_per_million["input"]` | USD input token price per million tokens, when known |
-| `cost_per_million["output"]` | USD output token price per million tokens, when known |
-| `usage_unit` | `"tokens"`, `"local_compute"`, or `"ollama_cloud_usage"` |
-| `usage_level` | Ollama Cloud usage tier, when applicable |
-
-Backend instances expose `context_window`, `input_token_cost_per_million`,
-`output_token_cost_per_million`, `usage_unit`, `usage_level`, and
-`estimate_cost(input_tokens, output_tokens)`. For local Ollama models, token
-API cost is `0.0`. For Ollama Cloud, public pricing is plan/usage based
-rather than token based, so `estimate_cost` returns `None`.
-
-The prices in this step are static tutorial data, current as of June 16,
-2026, and should be reviewed whenever the selected model set changes.
-
-### `Anthropic`
-
-Talks to `https://api.anthropic.com/v1/messages`.
-Requires an `ANTHROPIC_API_KEY`. Supported models are listed in
-`Anthropic.MODELS`.
-
-### `Ollama`
-
-Talks to `http://localhost:11434/api/chat`.
-Requires `ollama serve` running locally. No API key needed. Supported models
-are listed in `Ollama.MODELS`.
-
-### `OllamaCloud`
-
-Talks to `https://ollama.com/api/chat`. Requires an `OLLAMA_API_KEY`.
-Supported models are listed in `OllamaCloud.MODELS`.
-
-### `OpenAI`
-
-Talks to `https://api.openai.com/v1/chat/completions`.
-Requires an `OPENAI_API_KEY`. Supported models are listed in
-`OpenAI.MODELS`.
-
-### `Gemini`
-
-Talks to `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`.
-Requires a `GEMINI_API_KEY`. Supported models are listed in `Gemini.MODELS`.
-
-### System prompt
-
-Anthropic and Gemini send the system prompt as a top-level field, separate
-from the messages array. Ollama and OpenAI put it inside the messages array
-as a `role: system` message.
-
-```json
-// Anthropic
-{ "system": "You are a MUD player assistant.", "messages": [ ... ] }
-
-// Gemini
-{ "systemInstruction": { "parts": [{ "text": "You are a MUD player assistant." }] }, "contents": [ ... ] }
-
-// Ollama / OpenAI
-{ "messages": [ { "role": "system", "content": "You are a MUD player assistant." }, ... ] }
+```yaml
+tasks:
+  player:
+    provider: anthropic
+    model: claude-haiku-4-5
+    prompt_override:
+      system: true
 ```
 
-### Tool results
+When `prompt_override.system` is true, Boukensha reads
+`.boukensha/prompts/player/system.md`. Otherwise it falls back to this
+step's shipped `prompts/system.md`, located via `Config.PROMPTS_DIR`.
 
-Anthropic wraps tool results in a user message. Ollama and OpenAI use their
-own `role: tool` message type (with slightly different identifier fields).
-Gemini wraps results in a `functionResponse` part on a `user` message.
+Each backend validates the configured model at construction time.
+Unsupported model names raise `UnsupportedModelError`, and supported models
+expose backend-owned metadata such as `context_window`, `usage_unit`, and
+token cost estimates for later logging steps.
 
-```json
-// Anthropic
-{ "role": "user", "content": [{ "type": "tool_result", "tool_use_id": "toolu_01X", "content": "A damp stone corridor stretches north. Torches flicker on the walls." }] }
+## No dependencies
 
-// Ollama
-{ "role": "tool", "tool_name": "look", "content": "A damp stone corridor stretches north. Torches flicker on the walls." }
+`Client` uses Python's standard `http.client` module — no `requests`, no
+new entry in `requirements.txt`. This mirrors the Ruby implementation's
+deliberate choice to use `net/http` instead of a gem: the HTTP call itself
+is trivial and should stay visible, not hidden behind a library.
 
-// OpenAI
-{ "role": "tool", "tool_call_id": "toolu_01X", "content": "A damp stone corridor stretches north. Torches flicker on the walls." }
+`http.client` was chosen over `urllib.request` specifically because
+`urlopen` raises an exception on any non-2xx response by default, which
+would fight against `Client`'s own status-code-based retry/error logic.
+`http.client.HTTPConnection`/`HTTPSConnection` behave like Ruby's
+`Net::HTTP`: they hand back a response object regardless of status code and
+let the caller decide what to do with it.
 
-// Gemini
-{ "role": "user", "parts": [{ "functionResponse": { "name": "toolu_01X", "response": { "content": "A damp stone corridor stretches north. Torches flicker on the walls." } } }] }
-```
+### SSL and timeouts — two small, deliberate differences from Ruby
 
-### Tool definitions
+The Ruby README warns that hardcoding
+`OpenSSL::X509::DEFAULT_CERT_FILE` for the SSL certificate broke on
+Linux/WSL2, and tells the reader to work around it manually for their own
+machine. **The Python port has no equivalent problem to work around** —
+`ssl.create_default_context()` locates the platform's trust store
+automatically everywhere Python runs, so there's nothing to configure.
 
-Anthropic uses `input_schema`. Ollama and OpenAI wrap everything in a
-`function` envelope with `parameters`. Gemini wraps tools in a
-`functionDeclarations` array.
+Separately, `Client` sets an explicit 60-second timeout on every
+connection. Ruby gets a 60-second open/read timeout "for free" from
+`Net::HTTP`'s defaults without ever writing the number down; Python's
+`http.client` has no default timeout at all (it will block forever), so
+the port makes the equivalent value explicit instead of silently
+inheriting an infinite wait.
 
-```json
-// Anthropic
-{ "name": "move", "description": "Move the player in a direction (north, south, east, west, up, down)", "input_schema": { "type": "object", "properties": { "direction": { "type": "string", "description": "The direction to move" } }, "required": ["direction"] } }
+## Known Ruby-side quirk this port does *not* reproduce
 
-// Ollama / OpenAI
-{ "type": "function", "function": { "name": "move", "description": "Move the player in a direction (north, south, east, west, up, down)", "parameters": { "type": "object", "properties": { "direction": { "type": "string", "description": "The direction to move" } }, "required": ["direction"] } } }
+Ruby 04's `Config::PROMPTS_DIR` is computed with one extra `../` compared
+to Step 3 and resolves to a directory that doesn't exist on disk (one level
+above the project root). It's silently masked today because the shipped
+`settings.yaml` always sets `prompt_override.system: true`, so the default
+prompt path never actually gets exercised — but if that override were ever
+turned off, Ruby's default system prompt would fail to load.
 
-// Gemini
-{ "functionDeclarations": [ { "name": "move", "description": "Move the player in a direction (north, south, east, west, up, down)", "parameters": { "type": "object", "properties": { "direction": { "type": "string", "description": "The direction to move" } }, "required": ["direction"] } } ] }
-```
-
-### Message roles
-
-Anthropic, Ollama, and OpenAI all use `assistant` for the model's turn.
-Gemini calls it `model`.
-
-```json
-// Anthropic / Ollama / OpenAI
-{ "role": "assistant", "content": "Let me take a look around first." }
-
-// Gemini
-{ "role": "model", "parts": [{ "text": "Let me take a look around first." }] }
-```
-
-## Configuration compatibility
-
-The Python and Ruby implementations read the same `.boukensha/` directory.
-Resolution order is:
-
-1. `BOUKENSHA_DIR`
-2. `~/.boukensha`
-
-The shared directory supports the same `settings.yaml`, `.env`, and
-`prompts/<task>/system.md` override layout. `Config.PROMPTS_DIR` points at
-this package's own shipped `prompts/` directory, used as the fallback when a
-task doesn't override its prompt.
+Python's `Config.PROMPTS_DIR` is computed from `Path(__file__).resolve()`
+rather than a hand-counted relative-path string, so it already resolves
+correctly to this package's own `prompts/` directory with no changes
+needed. This is a deliberate, favorable divergence — not a bug to go
+"fix" into matching Ruby.
 
 ## Files
 
@@ -216,70 +138,107 @@ task doesn't override its prompt.
 | `boukensha/message.py` | `Message` dataclass |
 | `boukensha/context.py` | `Context` container |
 | `boukensha/registry.py` | `Registry` — registers and dispatches tools |
-| `boukensha/errors.py` | `UnknownToolError`, `UnsupportedModelError` |
+| `boukensha/errors.py` | `UnknownToolError`, `UnsupportedModelError`, `ApiError` |
 | `boukensha/tasks/` | Stateless task classes |
 | `boukensha/prompt_builder.py` | `PromptBuilder` — delegates serialization to a backend |
 | `boukensha/backends/` | Per-provider payload/message/tool serialization |
+| `boukensha/client.py` | `Client` — sends the payload and parses the response |
 | `prompts/system.md` | Default system prompt |
-| `examples/example.py` | Runnable smoke test |
+| `examples/example.py` | Runnable smoke test — makes a real API call |
 
 ## Run example
 
 ```bash
-./week1_baseline/bin/python/03_prompt_builder
+./week1_baseline/bin/python/04_api_client
 ```
 
 This builds the backend named by `tasks.player.provider` in
-`settings.yaml`, so it requires that provider's API key
-(`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, or
-`OLLAMA_API_KEY`) to be set in the environment or in `~/.boukensha/.env` —
-`ollama` is the only provider that needs no key. A missing key raises
-immediately when the backend is constructed, before any payload is built.
+`settings.yaml` and makes a **real** network request, so it requires that
+provider's API key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
+`GEMINI_API_KEY`, or `OLLAMA_API_KEY`) to be set in the environment or in
+`~/.boukensha/.env` — `ollama` is the only provider that needs no key and
+no network access beyond `localhost`.
 
-Expected output shape, with the config directory and exact payload
-depending on the configured provider/model:
+Example output shape (the exact response content depends on the live model
+call and will vary run to run):
 
 ```text
-=== BOUKENSHA Step 3: Prompt Builder ===
+=== BOUKENSHA Step 4: API Client ===
 
 Config: #<Boukensha::Config dir=/path/to/repo/.boukensha tasks=player>
-Provider: gemini
-Model: gemini-3.1-flash-lite
+Provider: anthropic
+Model: claude-haiku-4-5
+Sending request to https://api.anthropic.com/v1/messages...
+
+Raw response:
 {
-  "systemInstruction": { "parts": [{ "text": "..." }] },
-  "contents": [ ... ],
-  "tools": [ { "functionDeclarations": [ ... ] } ],
-  "generationConfig": { "maxOutputTokens": 1024 }
+  "id": "msg_01XY",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    { "type": "text", "text": "..." }
+  ],
+  "stop_reason": "end_turn",
+  "usage": { "input_tokens": 42, "output_tokens": 18 }
 }
 ```
 
+## What the response looks like
+
+The raw response shape differs between backends. This is what you get back
+from `client.call()` before any processing:
+
+### Anthropic
+```json
+{
+  "id": "msg_01XY",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    { "type": "text", "text": "Sure, let me read that file." }
+  ],
+  "stop_reason": "end_turn",
+  "usage": { "input_tokens": 42, "output_tokens": 18 }
+}
+```
+
+### Ollama
+```json
+{
+  "model": "llama3.2",
+  "message": {
+    "role": "assistant",
+    "content": "Sure, let me read that file."
+  },
+  "done_reason": "stop",
+  "done": true
+}
+```
+
+When the model wants to call a tool the response looks different. Anthropic
+uses `stop_reason: "tool_use"` and adds a `tool_use` block to `content`.
+Ollama adds a `tool_calls` array to `message`. Handling those differences is
+the job of Step 5 — the Agent Loop.
+
 ## Considerations
 
-**The conversation is stateless.** The model has no memory between turns.
-Every API call includes the entire history from the beginning. BOUKENSHA is
-responsible for carrying that state.
+**The client raises `ApiError` on failure.** A non-2xx response means
+something went wrong — bad API key, malformed payload, server error.
+BOUKENSHA surfaces this explicitly rather than returning a confusing `None`
+or partial response.
 
-**Tool results are user messages on Anthropic.** This feels
-counterintuitive — the result came from BOUKENSHA, not the human — but it
-reflects how the Anthropic API models the conversation. Ollama, OpenAI, and
-Gemini all handle this with dedicated message/part types instead.
-
-**The agent only sees schemas.** The `description` field on each tool is the
-only thing the agent uses to decide which tool to call. The actual block
-never leaves BOUKENSHA.
-
-**Ollama's payload ignores `max_output_tokens`.** Both `Ollama` and
-`OllamaCloud` accept the argument (for a consistent `to_payload` signature
-across backends) but never include it in the request body — this matches
-the Ruby backend exactly, not an oversight in the port.
+**Transient failures get a few retries, not infinite ones.** Connection
+resets, DNS hiccups, and a handful of well-known "try again" HTTP status
+codes get retried with exponential backoff; anything else — including any
+non-retryable 4xx — fails immediately.
 
 ## Considerations (carried over)
 
-- The default prompt is now scoped per task via `Config.PROMPTS_DIR` and
-  `user_prompts_dir`, resolved through `Tasks::Base.system_prompt`.
+- Still no tool-call loop — the response may say the model wants to use a
+  tool, but nothing here reads that and actually dispatches it. That's
+  Step 5.
+- `Client` performs one POST and returns the raw parsed JSON; no streaming,
+  no multi-turn orchestration yet.
 - Settings files must use `.yaml`, not `.yml`.
-- There's still no real agent decision loop — `example.py` hand-picks the
-  backend and hand-seeds the conversation to simulate what an agent would
-  eventually decide to do.
-- `PromptBuilder`/backends only serialize payloads; nothing in this step
-  performs an actual HTTP request. That wiring is a later step.
+- The default prompt is scoped per task via `Config.PROMPTS_DIR` and
+  `user_prompts_dir`, resolved through `Tasks::Base.system_prompt`.
