@@ -3,5 +3,5 @@ set -e
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 source "$ROOT/code/virtualenv/claude/bin/activate"
-cd "$(dirname "$0")/../../python/04_api_client"
+cd "$(dirname "$0")/../../python/05_agent_loop"
 python3 examples/example.py

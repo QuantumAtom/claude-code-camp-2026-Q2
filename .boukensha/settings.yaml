@@ -1,13 +1,13 @@
 tasks:
   player:
-    provider: gemini        # provider name (string)
-    model: "gemini-3.1-flash-lite"
-    prompt_override:
-      system: true
-   #provider: anthropic        # provider name (string)
-   #model: "claude-sonnet-4-6"
+    #provider: gemini        # provider name (string)
+    #model: "gemini-3.1-flash-lite"
     #prompt_override:
-      #system: true
+        #system: true
+    provider: anthropic        # provider name (string)
+    model: "claude-sonnet-4-6"
+    prompt_override:
+        system: true
 mud:
   host: localhost
   port: 4000

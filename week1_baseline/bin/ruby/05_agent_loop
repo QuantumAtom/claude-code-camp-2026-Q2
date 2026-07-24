@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-cd "$(dirname "$0")/../../ruby/04_api_client"
+cd "$(dirname "$0")/../../ruby/05_agent_loop"
 bundle exec ruby examples/example.rb
