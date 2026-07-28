@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -e
+
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+source "$HOME/code/virtualenv/claude/bin/activate"
+cd "$(dirname "$0")/../../python/08_the_repl_loop"
+python3 examples/example.py
