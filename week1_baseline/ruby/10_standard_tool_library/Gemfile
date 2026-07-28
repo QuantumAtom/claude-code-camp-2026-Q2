@@ -1,0 +1,6 @@
+source "https://rubygems.org"
+
+gem "dotenv"
+gem "mud_manager", path: "../../../week0_explore/mud_manager"
+
+gemspec

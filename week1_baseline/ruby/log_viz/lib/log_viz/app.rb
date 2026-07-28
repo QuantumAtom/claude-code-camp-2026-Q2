@@ -8,7 +8,7 @@ module LogViz
   class App < Sinatra::Base
     set :root, File.expand_path("../..", __dir__)
     set :sessions_dir, ENV.fetch("LOG_VIZ_SESSIONS_DIR") {
-      File.expand_path("../../../../.boukensha/sessions", __dir__)
+      File.expand_path("../../../../../.boukensha/sessions", __dir__)
     }
 
     helpers do
