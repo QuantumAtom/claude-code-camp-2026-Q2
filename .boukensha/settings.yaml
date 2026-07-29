@@ -5,7 +5,7 @@ tasks:
     #prompt_override:
         #system: true
     provider: anthropic        # provider name (string)
-    model: "claude-haiku-4-5"
+    model: "claude-sonnet-4-6"
     prompt_override:
         system: true
 mud:
