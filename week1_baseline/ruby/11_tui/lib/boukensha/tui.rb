@@ -11,10 +11,10 @@ module Boukensha
   TickMsg = Class.new(Bubbletea::Message)
 
   ANSI_COLORS = {
-    cyan:         "#00ffff",
-    bright_black: "#808080",
-    green:        "#00ff00",
-    white:        "#ffffff"
+    blue:         "#3d60ff",
+    violet:       "#c77dff",
+    Red:          "#b80041",
+    gold:         "#e59600"
   }.freeze
 
   # Tui wraps a Repl instance and replaces its raw puts/gets I/O with a
@@ -149,21 +149,21 @@ module Boukensha
         otok   = fmt_tokens(@live[:turn_output_tokens])
         calls  = @live[:tool_call_count]
 
-        lip(:cyan).render(
+        lip(:violet).render(
           "#{frame} #{action}  (iter #{iter}/#{max} · #{secs}s · ↑ #{itok} · ↓ #{otok} · #{calls} calls)"
         )
       else
         used  = fmt_tokens(@session_input_tokens)
         turns = @turn_count
 
-        lip(:bright_black).render(
+        lip(:gold).render(
           "  [ready]   ctx #{used}   #{turns} turns"
         )
       end
     end
 
     def render_input
-      prompt = lip(:green, bold: true).render(Repl::PROMPT)
+      prompt = lip(:Red, bold: true).render(Repl::PROMPT)
       "#{prompt}#{@textarea.view}"
     end
 
@@ -175,7 +175,7 @@ module Boukensha
       clock = Time.now.strftime("%H:%M:%S")
 
       bar = " boukensha v#{ver} · #{model}  ·  ctx #{used}  ·  #{tools} tools  ·  #{clock} "
-      lip(:white, bg: :bright_black).render(bar.ljust(@width))
+      lip(:blue, bg: :violet).render(bar.ljust(@width))
     end
 
     def lip(fg = nil, bg: nil, bold: false)
