@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -e
+
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+source "$HOME/code/virtualenv/claude/bin/activate"
+cd "$(dirname "$0")/../../python/12_context"
+
+python3 -c "
+import sys
+sys.path.insert(0, '.')
+import boukensha
+boukensha.repl(tui='--no-tui' not in sys.argv)
+"
