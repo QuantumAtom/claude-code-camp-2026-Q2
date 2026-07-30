@@ -9,6 +9,10 @@ module Boukensha
     #   2. ~/.boukensha  (default)
     DEFAULT_DIR = File.join(Dir.home, ".boukensha").freeze
 
+    # Default prompt shipped alongside this step, used when the user hasn't
+    # set up an override under the .boukensha config dir.
+    PROMPTS_DIR = File.expand_path("../../prompts", __dir__).freeze
+
     attr_reader :dir, :settings, :system_prompt
 
     def initialize
@@ -119,8 +123,9 @@ module Boukensha
 
     # Resolves the system prompt. When the player task opts into a prompt
     # override (tasks.player.prompt_override.system: true), the task-scoped
-    # file prompts/player/system.md wins; otherwise (and as a fallback) the
-    # flat prompts/system.md is used. Returns nil when neither exists.
+    # file prompts/player/system.md wins; otherwise the flat prompts/system.md
+    # under the user's config dir is used. If neither exists, falls back to
+    # the default prompt shipped in PROMPTS_DIR.
     def load_system_prompt
       if dig(:tasks, :player, :prompt_override, :system) == true
         task_file = File.join(@dir, "prompts", "player", "system.md")
@@ -128,7 +133,10 @@ module Boukensha
       end
 
       system_file = File.join(@dir, "prompts", "system.md")
-      File.exist?(system_file) ? File.read(system_file).strip : nil
+      return File.read(system_file).strip if File.exist?(system_file)
+
+      default_file = File.join(PROMPTS_DIR, "system.md")
+      File.exist?(default_file) ? File.read(default_file).strip : nil
     end
   end
 end

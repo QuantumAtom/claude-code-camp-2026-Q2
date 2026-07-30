@@ -11,9 +11,9 @@ module Boukensha
     #   write_file       — write (or overwrite) a file
     #   delete_file      — delete a file
     #
-    # list_directory and search_files are currently disabled (commented out
-    # below) — leftover from when this app was a coding harness; the player
-    # agent has no use for them yet.
+    # list_directory and search_files (directory discovery) were dropped —
+    # leftover from when this app was a coding harness; the player agent
+    # operates on paths it's already told about and has no use for them yet.
     #
     # Every path argument the agent supplies is resolved relative to that root.
     # If the resolved path would escape the root (path traversal) the tool
@@ -47,27 +47,6 @@ module Boukensha
           parameters:  {} do
           root
         end
-
-        # list_directory: disabled for now — leftover from when this app was a
-        # coding harness; the current player agent has no use for it. Kept here
-        # so it can be re-registered later if a task needs it.
-        #
-        # registry.tool "list_directory",
-        #   description: "List files and subdirectories at a path relative to the working directory. Defaults to the working directory itself.",
-        #   parameters:  {
-        #     path: { type: "string", description: "Relative path to list (default '.')" }
-        #   } do |path: "."|
-        #   target = resolve.call(path)
-        #   next target if target.start_with?("error:")
-        #   next oops.call("'#{path}' is not a directory") unless File.directory?(target)
-        #
-        #   entries = Dir.entries(target)
-        #                .reject { |e| e == "." || e == ".." }
-        #                .sort
-        #                .map { |name| File.directory?(File.join(target, name)) ? "#{name}/" : name }
-        #
-        #   entries.empty? ? "(empty)" : entries.join("\n")
-        # end
 
         registry.tool "read_file",
           description: "Read and return the full contents of a file. Path is relative to the working directory.",
@@ -114,42 +93,6 @@ module Boukensha
         rescue => e
           oops.call(e.message)
         end
-
-        # search_files: disabled for now — same reason as list_directory above.
-        #
-        # registry.tool "search_files",
-        #   description: "Search for a text pattern (literal string or Ruby regex) across all files in the working directory tree. Returns matching lines in 'path:line_number:content' format.",
-        #   parameters:  {
-        #     pattern: { type: "string", description: "The text or regex pattern to search for" },
-        #     path:    { type: "string", description: "Subdirectory or file to search within (default '.' = entire working directory)" },
-        #     glob:    { type: "string", description: "File glob to restrict which files are searched, e.g. '*.rb' (default '*')" }
-        #   } do |pattern:, path: ".", glob: "*"|
-        #   target = resolve.call(path)
-        #   next target if target.start_with?("error:")
-        #
-        #   search_root = File.file?(target) ? File.dirname(target) : target
-        #   file_glob   = File.file?(target) ? target : File.join(target, "**", glob)
-        #
-        #   begin
-        #     regex   = Regexp.new(pattern)
-        #   rescue RegexpError => e
-        #     next oops.call("invalid pattern: #{e.message}")
-        #   end
-        #
-        #   matches = []
-        #   Dir.glob(file_glob).sort.each do |file|
-        #     next unless File.file?(file)
-        #     rel = file.delete_prefix("#{root}/")
-        #     File.foreach(file).with_index(1) do |line, lineno|
-        #       matches << "#{rel}:#{lineno}:#{line.chomp}" if line.match?(regex)
-        #     end
-        #   rescue => e
-        #     matches << "#{rel}: error reading file: #{e.message}"
-        #   end
-        #
-        #   matches.empty? ? "no matches" : matches.join("\n")
-        # end
-
       end # def self.register
     end # FileSystem
   end # Tools
