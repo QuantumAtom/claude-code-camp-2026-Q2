@@ -17,6 +17,15 @@
 #   BOUKENSHA_PATH=~/Sites/boukensha/04_api_client boukensha              # loads step 4
 #   BOUKENSHA_DIR=~/projects/mybot/.boukensha boukensha                   # custom config dir
 #   echo ~/Sites/boukensha/10_standard_tool_library > ~/.boukensharc && boukensha
+
+require 'dotenv/load'
+require 'opentelemetry/sdk'
+require 'opentelemetry/exporter/otlp'
+
+OpenTelemetry::SDK.configure do |c|
+  c.service_name = ENV.fetch('OTEL_SERVICE_NAME', 'boukensha')
+end
+
 module BoukenshaLoader
   # Absolute path to this gem's own bundled boukensha lib.
   BUNDLED_LIB = File.expand_path("../boukensha.rb", __FILE__)

@@ -6,8 +6,8 @@ module Boukensha
   class Config
     # The .boukensha config directory is resolved in this order:
     #   1. BOUKENSHA_DIR environment variable (set before loading .env)
-    #   2. ~/.boukensha  (default)
-    DEFAULT_DIR = File.join(Dir.home, ".boukensha").freeze
+    #   2. this project's own .boukensha/ folder (default)
+    DEFAULT_DIR = File.expand_path("../../../../../.boukensha", __dir__).freeze
 
     # Default prompts shipped alongside the gem/library code.
     PROMPTS_DIR = File.expand_path("../../prompts", __dir__).freeze

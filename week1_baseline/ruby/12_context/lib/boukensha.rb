@@ -1,3 +1,16 @@
+require 'dotenv/load'
+require 'opentelemetry/sdk'
+require 'opentelemetry/exporter/otlp'
+
+OpenTelemetry::SDK.configure do |c|
+  c.service_name = ENV.fetch('OTEL_SERVICE_NAME', 'boukensha')
+  c.add_span_processor(
+    OpenTelemetry::SDK::Trace::Export::BatchSpanProcessor.new(
+      OpenTelemetry::Exporter::OTLP::Exporter.new
+    )
+  )
+end
+
 require_relative "boukensha/version"
 require_relative "boukensha/config"
 

@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 class Config:
     # The .boukensha config directory is resolved in this order:
     #   1. BOUKENSHA_DIR environment variable (set before loading .env)
-    #   2. ~/.boukensha  (default)
-    DEFAULT_DIR = str(Path.home() / ".boukensha")
+    #   2. this project's own .boukensha/ folder (default)
+    DEFAULT_DIR = str(Path(__file__).resolve().parents[4] / ".boukensha")
 
     # Default prompts shipped alongside this package.
     PROMPTS_DIR = str(Path(__file__).resolve().parent.parent / "prompts")
