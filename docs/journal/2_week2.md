@@ -14,7 +14,7 @@ I fought with my coding agent and LLM to add it to my agent loop, but I was told
 
 Incidentally, with the amount of API tokens that Boukensha is consuming, I am thinking of setting up an API client connection to Minimax 3, which is comparable to Sonnet 4.6 with less token consumption.
 ### Technical Conclusions
-Although I appreciate Andrew's use of Garafane and Jaegar, with some minor adjuistments in adding telemetry to the code, using a cloud based OTEL provider was fairly easy. Also I discovered that my .boukensha environement variables were user-wide instead of project-wide. 
+Although I appreciate Andrew's use of Garafana and Jaeger, with some minor adjustments in adding telemetry to the code, using a cloud based OTEL provider was fairly easy. Also I discovered that my .boukensha environment variables were user-wide instead of project-wide. 
 
 ## 01 Honeycomb.io additional observability and instrumentation
 ### Technical Observations
@@ -25,8 +25,8 @@ Apparently, every llm call is considered its own span.
 The new instrumentation required changes to the following files:
 
 - Agent.rb
-- converation_span_processor.rb - for adding conversation telemetry
-- boukensha.rb - new Bourkensha.tracer metho that the ConversationSpanProcessor is included
+- conversation_span_processor.rb - for adding conversation telemetry
+- boukensha.rb - new Boukensha.tracer method that the ConversationSpanProcessor is included
 - client.rb - replaced the previous Tracer constant with Boukensha.tracer.in_span
 - registry.rb - Same, replaced the previous Tracer constant with Boukensha.tracer.in_span
 
@@ -38,7 +38,7 @@ With the additional information, I can now drill down into deeper information ab
 ### Technical Observation
 Honeycomb.io showed no errors aside from overspending my Claude API tokens. Looking at my current spend afterwards, it seems like simple commands seem to eat up quite a few tokens. I went from $20 additional token credits to $12.12 with eating, drinking, movement, and very occasional fighting. 
 
-I checked which tools have the highest latency and by far it is `send_raw` That tool sends non-standard commands that aren't things like "look" or "move". So, since it is waitng for a socker timeout instead of knowing and expecting the response structure. 
+I checked which tools have the highest latency and by far it is `send_raw` That tool sends non-standard commands that aren't things like "look" or "move". So, since it is waiting for a socket timeout instead of knowing and expecting the response structure. 
 
 The number one cause of that is opening or unlocking the door. I added "open" and "unlock" as tools to use (it is using the `p.door` primitive). Also, I added "read" as that is used too (it is using the `p.look` primitive).
 
@@ -53,3 +53,4 @@ I just did some more exploring in the sewer. It cost a new whopping 68,289 token
 Also the OTEL telemetry noted that there was coin that was left untouched. I am thinking about adding some capabilities like building a sqlite database with location and what is in each location. 
 
 ### Technical Conclusions
+I was able to weave a story of how latency and token usage can affect optimization of the AI SDK. Sometimes, by checking what processes are explicit instead of having instruction inference, we can save quite a few tokens and speed up the SDK by having it know exactly what to anticipate instead of waiting for the AI model to infer. It is also worth noting that by having less inference, it can save a lot on tokens and speed up latency by not having the span wait on a socket timeout in a trace. More explicit instructions instead of expecting common sense (i.e. checking whether the water bottle is empty) or have the AI figure it out (opening and unlocking a door) helps a lot. For my next trick, I will try to add an sqlite database of locations visited while documenting mobs (friend or enemy), items available, title of location, which area the location is part of (i.e. sewer, castle, town, newbie zone, etc), and the exits. 
