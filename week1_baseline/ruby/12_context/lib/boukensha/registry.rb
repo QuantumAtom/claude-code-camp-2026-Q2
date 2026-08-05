@@ -3,8 +3,6 @@ require "opentelemetry/sdk"
 
 module Boukensha
   class Registry
-    TRACER = OpenTelemetry.tracer_provider.tracer('boukensha')
-
     def initialize(context)
       @context = context
     end
@@ -15,20 +13,25 @@ module Boukensha
       tool
     end
 
-    def dispatch(name, args = {})
-      TRACER.in_span('tool.dispatch') do |span|
+    def dispatch(name, args = {}, tool_call_id: nil)
+      Boukensha.tracer.in_span('tool.dispatch') do |span|
         span.set_attribute('tool.name', name.to_s)
         span.set_attribute('tool.args', args.to_s)
+        span.set_attribute('gen_ai.operation.name', 'execute_tool')
+        span.set_attribute('gen_ai.tool.name', name.to_s)
+        span.set_attribute('gen_ai.tool.call.arguments', args.to_s)
+        span.set_attribute('gen_ai.tool.call.id', tool_call_id.to_s) if tool_call_id
 
         tool = @context.tools[name.to_s]
-        unless tool
-          span.status = OpenTelemetry::Trace::Status.error("Unknown tool: #{name}")
-          raise UnknownToolError, "No tool registered as '#{name}'"
-        end
+        raise UnknownToolError, "No tool registered as '#{name}'" unless tool
 
         result = tool.block.call(**args.transform_keys(&:to_sym))
         span.set_attribute('tool.result', result.to_s[0..200])
+        span.set_attribute('gen_ai.tool.call.result', result.to_s[0..200])
         result
+        # No explicit rescue here: Tracer#in_span already records the
+        # exception and sets error status on this span for anything that
+        # escapes the block above (unknown tool or a failing tool.block).
       end
     end
   end

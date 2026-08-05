@@ -18,6 +18,7 @@ module Boukensha
     #   Perception
     #     look              — look at the room or a specific target
     #     examine           — examine something in detail
+    #     read              — read a sign, book, letter, or other readable item
     #     check             — query self-info (score, inventory, equipment, exits, gold…)
     #
     #   Movement
@@ -25,6 +26,10 @@ module Boukensha
     #     flee              — flee from combat
     #     set_position      — change body position (stand/sit/rest/sleep/wake)
     #     track             — track a mob or player by name to find their direction
+    #
+    #   Doors
+    #     check_door        — check whether a door is locked (subtool used by open_door)
+    #     open_door         — open a door, unlocking it first if it's locked and unlockable
     #
     #   Combat
     #     attack            — attack a target (kill / hit / murder)
@@ -159,6 +164,19 @@ module Boukensha
           end
         end
 
+        registry.tool "read",
+          description: "Read text on a sign, book, letter, scroll, or other readable item.",
+          parameters: {
+            target: { type: "string", description: "The sign, book, or other readable item to read" }
+          } do |target:|
+          next guard.call if guard.call
+          begin
+            send_cmd.call(p.look(mode: "read", target: target))
+          rescue ArgumentError => e
+            "error: #{e.message}"
+          end
+        end
+
         registry.tool "check",
           description: "Query information about your character or surroundings. " \
                        "Kinds: score, inventory, equipment, gold, exits, time, weather, " \
@@ -219,6 +237,66 @@ module Boukensha
           next guard.call if guard.call
           begin
             send_cmd.call(p.track(target))
+          rescue ArgumentError => e
+            "error: #{e.message}"
+          end
+        end
+
+        # ── Doors ───────────────────────────────────────────────────────────
+
+        # Attempt to open a door and report whether the response indicates it's
+        # locked. There is no separate "peek" command on the MUD — the only way
+        # to learn a door's lock state is to try opening it — so this doubles as
+        # the actual open attempt: if it turns out to be unlocked, it's now open.
+        check_door_locked = lambda do |target, direction|
+          response = send_cmd.call(p.door("open", target, direction: direction))
+          [response.to_s.match?(/lock/i), response]
+        end
+
+        # Heuristic for a failed unlock attempt (wrong/missing key, stuck lock,
+        # etc.) versus a successful one (typically a terse "*Click*").
+        unlock_failed = lambda do |response|
+          response.to_s.match?(/don'?t have|do not have|no key|won'?t (turn|budge)|can'?t seem|cannot seem/i)
+        end
+
+        registry.tool "check_door",
+          description: "Check whether a door or exit is locked, without forcing it open. " \
+                       "This is the subtool open_door uses internally; call it directly if you " \
+                       "only want to know the lock state. Note: if the door turns out to be " \
+                       "unlocked, this check opens it as a side effect (there's no separate " \
+                       "peek command on the MUD).",
+          parameters: {
+            target:    { type: "string", description: "Name of the door or exit (e.g. 'door', 'gate')" },
+            direction: { type: "string", description: "Direction the door is in (optional): north | east | south | west | up | down" }
+          } do |target:, direction: nil|
+          next guard.call if guard.call
+          begin
+            locked, response = check_door_locked.call(target, direction)
+            "#{locked ? 'locked' : 'not locked'}: #{response}"
+          rescue ArgumentError => e
+            "error: #{e.message}"
+          end
+        end
+
+        registry.tool "open_door",
+          description: "Open a door or exit. Checks whether it's locked first; if it is, " \
+                       "attempts to unlock it and then opens it. If it cannot be unlocked " \
+                       "(e.g. no key), reports that the door is locked and unable to be unlocked.",
+          parameters: {
+            target:    { type: "string", description: "Name of the door or exit (e.g. 'door', 'gate')" },
+            direction: { type: "string", description: "Direction the door is in (optional): north | east | south | west | up | down" }
+          } do |target:, direction: nil|
+          next guard.call if guard.call
+          begin
+            locked, response = check_door_locked.call(target, direction)
+            next response unless locked
+
+            unlock_response = send_cmd.call(p.door("unlock", target, direction: direction))
+            if unlock_failed.call(unlock_response)
+              "the door is locked and unable to be unlocked (#{unlock_response.strip})"
+            else
+              send_cmd.call(p.door("open", target, direction: direction))
+            end
           rescue ArgumentError => e
             "error: #{e.message}"
           end

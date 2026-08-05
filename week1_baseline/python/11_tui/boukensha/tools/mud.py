@@ -1,3 +1,4 @@
+import re
 import sys
 from pathlib import Path
 
@@ -79,6 +80,15 @@ def register(registry, *, host="localhost", port=4000, name, password):
         except ValueError as e:
             return f"error: {e}"
 
+    def read(target):
+        err = guard()
+        if err:
+            return err
+        try:
+            return send_cmd(p.look(mode="read", target=target))
+        except ValueError as e:
+            return f"error: {e}"
+
     def check(kind):
         err = guard()
         if err:
@@ -120,6 +130,49 @@ def register(registry, *, host="localhost", port=4000, name, password):
             return err
         try:
             return send_cmd(p.track(target))
+        except ValueError as e:
+            return f"error: {e}"
+
+    # ── Doors ───────────────────────────────────────────────────────────
+
+    # Attempt to open a door and report whether the response indicates it's
+    # locked. There is no separate "peek" command on the MUD — the only way
+    # to learn a door's lock state is to try opening it — so this doubles as
+    # the actual open attempt: if it turns out to be unlocked, it's now open.
+    def _check_door_locked(target, direction):
+        response = send_cmd(p.door("open", target, direction=direction))
+        return bool(re.search(r"lock", str(response), re.IGNORECASE)), response
+
+    # Heuristic for a failed unlock attempt (wrong/missing key, stuck lock,
+    # etc.) versus a successful one (typically a terse "*Click*").
+    def _unlock_failed(response):
+        return bool(re.search(
+            r"don'?t have|do not have|no key|won'?t (turn|budge)|can'?t seem|cannot seem",
+            str(response), re.IGNORECASE))
+
+    def check_door(target, direction=None):
+        err = guard()
+        if err:
+            return err
+        try:
+            locked, response = _check_door_locked(target, direction)
+            return f"{'locked' if locked else 'not locked'}: {response}"
+        except ValueError as e:
+            return f"error: {e}"
+
+    def open_door(target, direction=None):
+        err = guard()
+        if err:
+            return err
+        try:
+            locked, response = _check_door_locked(target, direction)
+            if not locked:
+                return response
+
+            unlock_response = send_cmd(p.door("unlock", target, direction=direction))
+            if _unlock_failed(unlock_response):
+                return f"the door is locked and unable to be unlocked ({str(unlock_response).strip()})"
+            return send_cmd(p.door("open", target, direction=direction))
         except ValueError as e:
             return f"error: {e}"
 
@@ -305,6 +358,9 @@ def register(registry, *, host="localhost", port=4000, name, password):
     registry.tool("examine",
         "Examine a target in detail (more verbose than look).",
         {"target": {"type": "string", "description": "The item, mob, or player to examine"}}, examine)
+    registry.tool("read",
+        "Read text on a sign, book, letter, scroll, or other readable item.",
+        {"target": {"type": "string", "description": "The sign, book, or other readable item to read"}}, read)
     registry.tool("check",
         "Query information about your character or surroundings. Kinds: score, inventory, "
         "equipment, gold, exits, time, weather, levels, wimpy, toggle, where.",
@@ -324,6 +380,24 @@ def register(registry, *, host="localhost", port=4000, name, password):
         "Attempt to track a mob or player by name, revealing which direction they are in. "
         "Requires the Track skill.",
         {"target": {"type": "string", "description": "Name of the mob or player to track"}}, track)
+
+    registry.tool("check_door",
+        "Check whether a door or exit is locked, without forcing it open. This is the subtool "
+        "open_door uses internally; call it directly if you only want to know the lock state. "
+        "Note: if the door turns out to be unlocked, this check opens it as a side effect "
+        "(there's no separate peek command on the MUD).",
+        {
+            "target": {"type": "string", "description": "Name of the door or exit (e.g. 'door', 'gate')"},
+            "direction": {"type": "string", "description": "Direction the door is in (optional): north | east | south | west | up | down"},
+        }, check_door)
+    registry.tool("open_door",
+        "Open a door or exit. Checks whether it's locked first; if it is, attempts to unlock "
+        "it and then opens it. If it cannot be unlocked (e.g. no key), reports that the door "
+        "is locked and unable to be unlocked.",
+        {
+            "target": {"type": "string", "description": "Name of the door or exit (e.g. 'door', 'gate')"},
+            "direction": {"type": "string", "description": "Direction the door is in (optional): north | east | south | west | up | down"},
+        }, open_door)
 
     registry.tool("attack",
         "Attack a target. Style 'kill' is the standard approach; 'murder' bypasses the mercy "

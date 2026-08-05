@@ -1,15 +1,5 @@
-require 'dotenv/load'
 require 'opentelemetry/sdk'
 require 'opentelemetry/exporter/otlp'
-
-OpenTelemetry::SDK.configure do |c|
-  c.service_name = ENV.fetch('OTEL_SERVICE_NAME', 'boukensha')
-  c.add_span_processor(
-    OpenTelemetry::SDK::Trace::Export::BatchSpanProcessor.new(
-      OpenTelemetry::Exporter::OTLP::Exporter.new
-    )
-  )
-end
 
 require_relative "boukensha/version"
 require_relative "boukensha/config"
@@ -17,10 +7,44 @@ require_relative "boukensha/config"
 module Boukensha
   @debug  = false
   @config = nil
+  @telemetry_configured = false
 
   def self.config
     @config ||= Config.new
   end
+
+  # Looks up the tracer *lazily*, at call time, rather than caching it in a
+  # constant. OpenTelemetry::SDK.configure swaps in a brand-new
+  # TracerProvider object each time it runs (confirmed: re-running configure
+  # does not mutate the existing provider), and configure_telemetry! always
+  # runs after this file (and client.rb/registry.rb/agent.rb) has already
+  # loaded. A `TRACER = OpenTelemetry.tracer_provider.tracer(...)` constant
+  # would therefore bind to the pre-configuration provider -- which has no
+  # exporter -- and every span created through it would be silently dropped.
+  def self.tracer
+    OpenTelemetry.tracer_provider.tracer('boukensha')
+  end
+
+  # Configures the OpenTelemetry SDK exactly once. Must run *after* `config`
+  # has loaded .env (see Config#load_env) -- OTLP::Exporter.new reads
+  # OTEL_EXPORTER_OTLP_ENDPOINT/HEADERS from ENV at construction time, so
+  # configuring the SDK any earlier would silently point the exporter at the
+  # OTLP default (localhost:4318) instead of Honeycomb.
+  def self.configure_telemetry!
+    return if @telemetry_configured
+    @telemetry_configured = true
+
+    OpenTelemetry::SDK.configure do |c|
+      c.service_name = ENV.fetch('OTEL_SERVICE_NAME', 'boukensha')
+      c.add_span_processor(
+        OpenTelemetry::SDK::Trace::Export::BatchSpanProcessor.new(
+          OpenTelemetry::Exporter::OTLP::Exporter.new
+        )
+      )
+      c.add_span_processor(ConversationSpanProcessor.new)
+    end
+  end
+  private_class_method :configure_telemetry!
 
   def self.debug!
     @debug = true
@@ -66,6 +90,7 @@ module Boukensha
     &block
   )
     cfg     = config                           # loads .env; populates ENV
+    configure_telemetry!
     system  ||= cfg.system_prompt
     model   ||= cfg.model
     context_window ||= Models.context_window(model)
@@ -120,6 +145,11 @@ module Boukensha
     agent.run
   ensure
     logger&.close
+    # Flushes whatever spans are still sitting in the BatchSpanProcessor's
+    # queue before the process exits -- without this, a short-lived run can
+    # exit before the processor's next scheduled export and silently drop
+    # every span it recorded.
+    OpenTelemetry.tracer_provider.shutdown if @telemetry_configured
   end
 
   # Interactive REPL — see Boukensha.run for full option documentation.
@@ -143,6 +173,7 @@ module Boukensha
     &block
   )
     cfg     = config                           # loads .env; populates ENV
+    configure_telemetry!
     system  ||= cfg.system_prompt
     model   ||= cfg.model
     context_window ||= Models.context_window(model)
@@ -214,6 +245,11 @@ module Boukensha
     puts "\nInterrupted."
   ensure
     logger&.close
+    # Flushes whatever spans are still sitting in the BatchSpanProcessor's
+    # queue before the process exits -- without this, a short-lived run can
+    # exit before the processor's next scheduled export and silently drop
+    # every span it recorded.
+    OpenTelemetry.tracer_provider.shutdown if @telemetry_configured
   end
 
   # Build a mud options hash from config (used when mud: nil is passed to run/repl).
@@ -231,6 +267,7 @@ module Boukensha
   private_class_method :mud_opts_from_config
 end
 
+require_relative "boukensha/conversation_span_processor"
 require_relative "boukensha/tool"
 require_relative "boukensha/message"
 require_relative "boukensha/models"

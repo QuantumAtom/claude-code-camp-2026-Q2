@@ -1,5 +1,12 @@
+require "opentelemetry/sdk"
+require "securerandom"
+
 module Boukensha
   class Agent
+    # There's currently only one agent type in this codebase; this is the
+    # stable gen_ai.agent.name value used for every run.
+    AGENT_NAME = "boukensha"
+
     # Default iteration ceiling. The *enforced* value comes from the
     # max_iterations: constructor arg (sourced from Config at the run/repl path),
     # which falls back to this constant. 0 (or nil) disables the ceiling.
@@ -26,42 +33,72 @@ module Boukensha
       @iteration         = 0
     end
 
+    # Conversation id is generated once per run: reuses the logger's session
+    # id when one exists (so the Honeycomb trace and the .jsonl log file
+    # correlate under the same id), otherwise falls back to a fresh uuid.
+    # It's pushed into OTel Baggage before the invoke_agent span opens, so
+    # ConversationSpanProcessor#on_start can stamp it onto every span created
+    # for the rest of this run -- llm.call and tool.dispatch included --
+    # without conversation_id having to be threaded through their signatures.
     def run
-      @context.reset_turn_tokens
-      compact_if_needed
+      conversation_id = @logger.respond_to?(:session_id) && @logger.session_id ? @logger.session_id.to_s : SecureRandom.uuid
+      baggage_context  = OpenTelemetry::Baggage.set_value('gen_ai.conversation.id', conversation_id)
 
-      loop do
-        # Two independent ceilings; stop at whichever trips first. Limits are
-        # *trigger thresholds*, not hard caps: when one is reached we stop
-        # starting new work iterations and make exactly one terminal wind-down
-        # call (counted in tokens, but not as another iteration).
-        if iteration_limit_reached?
-          @logger.limit_reached(kind: "max_iterations", n: @iteration, max: @max_iterations)
-          return wrap_up("max_iterations")
-        end
-        if token_limit_reached?
-          @logger.limit_reached(kind: "max_tokens", n: @context.turn_tokens, max: @max_turn_tokens)
-          return wrap_up("max_tokens")
-        end
+      # No request/session concept exists in this single-operator CLI agent,
+      # so ENV is the closest stand-in for "user context." Absent -> skipped
+      # silently, both here and in ConversationSpanProcessor.
+      user_id = ENV['BOUKENSHA_USER_ID']
+      baggage_context = OpenTelemetry::Baggage.set_value('enduser.id', user_id, context: baggage_context) if user_id
 
-        @iteration += 1
-        @logger.iteration(n: @iteration, max: @max_iterations)
-        @logger.prompt(messages: @context.messages, tools: @context.tools, context_window: @context.context_window)
+      OpenTelemetry::Context.with_current(baggage_context) do
+        Boukensha.tracer.in_span('invoke_agent') do |span|
+          span.set_attribute('gen_ai.operation.name', 'invoke_agent')
+          span.set_attribute('gen_ai.agent.name', AGENT_NAME)
+          span.set_attribute('enduser.id', user_id) if user_id
 
-        response = @client.call(**call_opts)
-        @logger.raw(data: response)
-        parsed   = @builder.parse_response(response)
-        record_usage(response)
-        log_reasoning(parsed[:content])
+          @context.reset_turn_tokens
+          compact_if_needed
 
-        if parsed[:stop_reason] == "tool_use"
-          handle_tool_calls(parsed[:content], response)
-        else
-          text = extract_text(parsed[:content])
-          @logger.response(text: text, usage: response["usage"], stop_reason: parsed[:stop_reason])
-          @logger.turn_end(reason: "completed", iterations: @iteration, tokens: @context.turn_tokens)
-          @context.add_message(:assistant, text)
-          return text
+          loop do
+            # Two independent ceilings; stop at whichever trips first. Limits are
+            # *trigger thresholds*, not hard caps: when one is reached we stop
+            # starting new work iterations and make exactly one terminal wind-down
+            # call (counted in tokens, but not as another iteration).
+            if iteration_limit_reached?
+              @logger.limit_reached(kind: "max_iterations", n: @iteration, max: @max_iterations)
+              break wrap_up("max_iterations")
+            end
+            if token_limit_reached?
+              @logger.limit_reached(kind: "max_tokens", n: @context.turn_tokens, max: @max_turn_tokens)
+              break wrap_up("max_tokens")
+            end
+
+            @iteration += 1
+            @logger.iteration(n: @iteration, max: @max_iterations)
+            @logger.prompt(messages: @context.messages, tools: @context.tools, context_window: @context.context_window)
+
+            response = @client.call(**call_opts)
+            @logger.raw(data: response)
+            parsed   = @builder.parse_response(response)
+            record_usage(response)
+            log_reasoning(parsed[:content])
+
+            if parsed[:stop_reason] == "tool_use"
+              handle_tool_calls(parsed[:content], response)
+            else
+              text = extract_text(parsed[:content])
+              @logger.response(text: text, usage: response["usage"], stop_reason: parsed[:stop_reason])
+              @logger.turn_end(reason: "completed", iterations: @iteration, tokens: @context.turn_tokens)
+              @context.add_message(:assistant, text)
+              break text
+            end
+          end
+          # No explicit rescue here: an exception escaping this block (e.g.
+          # ApiError from @client.call after retries are exhausted) is
+          # already recorded and marked as error status on this invoke_agent
+          # span by Tracer#in_span itself. The one case that genuinely needs
+          # help is a tool failure that's handled in-band rather than
+          # re-raised -- see the rescue in handle_tool_calls below.
         end
       end
     end
@@ -165,11 +202,19 @@ module Boukensha
 
         @logger.tool_call(name: name, args: args)
         begin
-          result = @registry.dispatch(name, args)
+          result = @registry.dispatch(name, args, tool_call_id: use_id)
           @logger.tool_result(name: name, result: result, ok: true)
         rescue StandardError => e
           result = "ERROR: #{e.class}: #{e.message}"
           @logger.tool_result(name: name, result: result, ok: false, error: e.message)
+
+          # Registry#dispatch already recorded the exception on its own
+          # tool.dispatch span before re-raising; that span has since closed
+          # (its `in_span` ensure ran during unwind), so current_span here
+          # resolves to the parent invoke_agent span. This error is handled
+          # in-band (fed back to the model as a result string, not re-raised)
+          # so it would otherwise never touch invoke_agent's status at all.
+          OpenTelemetry::Trace.current_span.status = OpenTelemetry::Trace::Status.error("tool #{name} failed: #{e.message}")
         end
 
         @context.add_message(:tool_result, result.to_s, tool_use_id: use_id)
