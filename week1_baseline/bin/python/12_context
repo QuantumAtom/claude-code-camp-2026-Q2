@@ -2,7 +2,7 @@
 set -e
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-source "$HOME/code/virtualenv/claude/bin/activate"
+source "$ROOT/.venv/bin/activate"
 cd "$(dirname "$0")/../../python/12_context"
 
 python3 -c "

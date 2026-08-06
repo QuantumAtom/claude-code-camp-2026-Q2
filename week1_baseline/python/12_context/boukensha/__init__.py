@@ -1,6 +1,7 @@
 import os
 
 from .config import Config
+from . import telemetry
 
 _quiet = False
 _debug = False
@@ -113,6 +114,7 @@ def run(
     configure=None,
 ):
     cfg = config()  # loads .env; populates os.environ
+    telemetry.configure()
     if system is None:
         system = cfg.system_prompt
     if model is None:
@@ -196,6 +198,11 @@ def run(
     finally:
         if logger is not None:
             logger.close()
+        # Flushes whatever spans are still sitting in the
+        # BatchSpanProcessor's queue before the process exits -- without
+        # this, a short-lived run can exit before the processor's next
+        # scheduled export and silently drop every span it recorded.
+        telemetry.shutdown()
 
 
 # Interactive REPL: register tools once, then loop — reading tasks from
@@ -225,6 +232,7 @@ def repl(
     tui=True,
 ):
     cfg = config()  # loads .env; populates os.environ
+    telemetry.configure()
     if system is None:
         system = cfg.system_prompt
     if model is None:
@@ -310,6 +318,11 @@ def repl(
     finally:
         if logger is not None:
             logger.close()
+        # Flushes whatever spans are still sitting in the
+        # BatchSpanProcessor's queue before the process exits -- without
+        # this, a short-lived run can exit before the processor's next
+        # scheduled export and silently drop every span it recorded.
+        telemetry.shutdown()
 
 
 __all__ = [

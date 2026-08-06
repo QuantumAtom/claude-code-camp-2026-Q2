@@ -1,8 +1,19 @@
+import os
+import uuid
+
+from opentelemetry import baggage, context as otel_context, trace
+from opentelemetry.trace import Status, StatusCode
+
 from .errors import ApiError
 from .logger import Logger
+from .telemetry import tracer
 
 
 class Agent:
+    # There's currently only one agent type in this codebase; this is the
+    # stable gen_ai.agent.name value used for every run.
+    AGENT_NAME = "boukensha"
+
     MAX_ITERATIONS = 25
     WRAP_UP_OUTPUT_TOKENS = 400
     WRAP_UP_DIRECTIVE = (
@@ -27,7 +38,45 @@ class Agent:
         self.max_output_tokens = max_output_tokens
         self.iteration = 0
 
+    # Conversation id is generated once per run: reuses the logger's session
+    # id when one exists (so the Honeycomb trace and the .jsonl log file
+    # correlate under the same id), otherwise falls back to a fresh uuid.
+    # It's pushed into OTel Baggage before the invoke_agent span opens, so
+    # ConversationSpanProcessor.on_start can stamp it onto every span created
+    # for the rest of this run -- llm.call and tool.dispatch included --
+    # without conversation_id having to be threaded through their signatures.
     def run(self):
+        conversation_id = str(getattr(self.logger, "session_id", None) or uuid.uuid4())
+        baggage_context = baggage.set_baggage("gen_ai.conversation.id", conversation_id)
+
+        # No request/session concept exists in this single-operator CLI
+        # agent, so the environment is the closest stand-in for "user
+        # context." Absent -> skipped silently, both here and in
+        # ConversationSpanProcessor.
+        user_id = os.environ.get("BOUKENSHA_USER_ID")
+        if user_id:
+            baggage_context = baggage.set_baggage("enduser.id", user_id, context=baggage_context)
+
+        token = otel_context.attach(baggage_context)
+        try:
+            with tracer().start_as_current_span("invoke_agent") as span:
+                span.set_attribute("gen_ai.operation.name", "invoke_agent")
+                span.set_attribute("gen_ai.agent.name", self.AGENT_NAME)
+                if user_id:
+                    span.set_attribute("enduser.id", user_id)
+
+                return self._run_loop()
+                # No explicit except here: an exception escaping this block
+                # (e.g. ApiError from self.client.call after retries are
+                # exhausted) is already recorded and marked as error status
+                # on this invoke_agent span by start_as_current_span itself.
+                # The one case that genuinely needs help is a tool failure
+                # that's handled in-band rather than re-raised -- see the
+                # except in _handle_tool_calls below.
+        finally:
+            otel_context.detach(token)
+
+    def _run_loop(self):
         self.context.reset_turn_tokens()
         self._compact_if_needed()
 
@@ -163,10 +212,19 @@ class Agent:
 
             self.logger.tool_call(name=name, args=args)
             try:
-                result = self.registry.dispatch(name, args)
+                result = self.registry.dispatch(name, args, tool_call_id=use_id)
                 self.logger.tool_result(name=name, result=result, ok=True)
             except Exception as e:
                 result = f"ERROR: {type(e).__name__}: {e}"
                 self.logger.tool_result(name=name, result=result, ok=False, error=str(e))
+
+                # Registry.dispatch already recorded the exception on its own
+                # tool.dispatch span before re-raising; that span has since
+                # closed (its context-manager __exit__ ran during unwind),
+                # so trace.get_current_span() here resolves to the parent
+                # invoke_agent span. This error is handled in-band (fed back
+                # to the model as a result string, not re-raised) so it
+                # would otherwise never touch invoke_agent's status at all.
+                trace.get_current_span().set_status(Status(StatusCode.ERROR, f"tool {name} failed: {e}"))
 
             self.context.add_message("tool_result", str(result), tool_use_id=use_id)
