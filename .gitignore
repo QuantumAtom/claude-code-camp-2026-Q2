@@ -16,3 +16,6 @@ __pycache__/
 
 # Ruby build artifacts
 *.gem
+
+# Agent eval transcripts / scratch logs
+*.log

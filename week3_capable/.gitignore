@@ -1,0 +1,4 @@
+data/world.db
+data/world.db-journal
+data/world.db-wal
+data/world.db-shm

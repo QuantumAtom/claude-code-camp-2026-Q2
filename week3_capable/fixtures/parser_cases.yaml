@@ -1,0 +1,161 @@
+# Shared raw-text -> expected-parsed-output cases for boukensha/world/parser
+# (Python) and Boukensha::World::Parser (Ruby) -- plan §6b's drift guard.
+#
+# Both languages' parsers must produce the same structured result from the
+# same input. Run:
+#   python3 week3_capable/fixtures/check_parser_fixtures.py
+#   ruby week3_capable/fixtures/check_parser_fixtures.rb
+#
+# Cases 1-8 are pulled directly from plan §4's grounded session-log samples
+# (real CircleMUD output, not invented text). Cases 9-10 were added after
+# being caught live during verification (§8/§4's "There is a long, black
+# stick..." false-positive, and a second combat sample). Adding a new case
+# here is the intended way to grow parser coverage over time -- see §6b.
+
+- name: room_with_mob_line
+  function: parse_room
+  raw_text: "\x1b[0;33mThe Small Passage\x1b[0m\r\n   You are standing in a small passage leading north and south.  There\r\nis also an exit to the west...\r\n\x1b[0;36m[ Exits: n s w ]\x1b[0m\r\n\x1b[0;33mPeter, the Captain of the Royal Guard, walks around inspecting.\r\n\x1b[0m\r\n72H 100M 92V (motd) > "
+  expected:
+    name: "The Small Passage"
+    description: "You are standing in a small passage leading north and south.  There is also an exit to the west..."
+    exit_directions: [north, south, west]
+    mob_lines: ["Peter, the Captain of the Royal Guard, walks around inspecting."]
+
+- name: exits_full_names
+  function: parse_exits
+  raw_text: "Obvious exits:\r\nsouth - The Training Room\r\n\r\n72H 100M 93V (motd) > "
+  expected:
+    south: "The Training Room"
+
+- name: gold_pickup
+  function: parse_pickup
+  raw_text: "You get a little pile of gold coins from the corpse of the sewer rat.\r\nThere were 50 coins.\r\n\r\n62H 100M 73V (motd) > "
+  args: {}
+  expected:
+    item_name: gold
+    quantity: 50
+    item_type: gold
+
+- name: melee_landed
+  function: parse_combat_result
+  raw_text: "You barely pierce the sewer rat.\r\n\x1b[0;31mThe sewer rat tries to hit you but you easily avoid the blow.\r\n\x1b[0m\r\n62H 100M 88V (motd) > "
+  expected:
+    landed: true
+    killed: false
+
+- name: melee_missed
+  function: parse_combat_result
+  raw_text: "\x1b[0;33mYou try to pierce the sewer rat but pierce the air instead!\r\n\x1b[0mThe sewer rat tickles you as it hits you.\r\n\x1b[0m\r\n61H 100M 83V (motd) > "
+  expected:
+    landed: false
+    killed: false
+
+- name: melee_kill
+  function: parse_combat_result
+  raw_text: "\x1b[0mThe small bat is dead!  R.I.P.\r\nYou receive 34 experience points.\r\nYour blood... \r\n\r\n72H 100M 92V (motd) > "
+  expected:
+    landed: true
+    killed: true
+
+- name: consider_small_wounds
+  function: parse_condition
+  raw_text: "This creature is fairly large for a rat... The sewer rat has some small wounds and bruises.\r\n\r\n61H 100M 83V (motd) > "
+  expected: small_wounds
+
+- name: wield_short_sword
+  function: parse_wield
+  raw_text: "You wield a short sword in your right hand.\r\n\r\n72H 100M 92V (motd) > "
+  expected: "short sword"
+
+# Caught live during verification (both languages), not from §4's original
+# sample set -- a plain scenery-description line has the same shape a
+# mob-presence line does ("There" is capitalized, followed by "is"), so a
+# naive mob-line parser mis-tags it as a mob named "There". This case exists
+# specifically to keep that fix from silently regressing in either language.
+- name: room_with_false_positive_mob_line
+  function: parse_room
+  raw_text: "\x1b[0;33mThe Top Of The Mountain\x1b[0m\r\n   You are at the summit.\r\n\x1b[0;36m[ Exits: e s w ]\x1b[0m\r\nThere is a long, black stick lying here.\r\nA dwarven mining worker stands here, watching.\r\n\r\n72H 100M 93V (motd) > "
+  expected:
+    name: "The Top Of The Mountain"
+    description: "You are at the summit."
+    exit_directions: [east, south, west]
+    mob_lines: ["There is a long, black stick lying here.", "A dwarven mining worker stands here, watching."]
+    # Note: parse_room() itself doesn't filter mob_lines -- that's the
+    # observer/registry layer's job (world.py's _link_mob_lines / world's
+    # link_mob_lines in observer.rb), which is what actually applies the
+    # stopword exclusion. This case checks the raw parse; the exclusion
+    # behavior itself is exercised by case 10 below.
+
+- name: mob_line_stopword_exclusion
+  function: mob_line_is_real_mob
+  # Not a parser.{py,rb} function -- this checks the observer layer's
+  # MOB_LINE_NAME_RE + stopword-exclusion logic directly (world.py's
+  # _MOB_LINE_NAME_RE/_MOB_LINE_STOPWORDS, world's MOB_LINE_NAME_RE/
+  # MOB_LINE_STOPWORDS in observer.rb).
+  cases:
+    - line: "There is a long, black stick lying here."
+      is_real_mob: false
+    - line: "A dwarven mining worker stands here, watching."
+      is_real_mob: true
+    - line: "Peter, the Captain of the Royal Guard, walks around inspecting."
+      is_real_mob: true
+
+# goto_tool_plan §5: detect_seed_zone(name, description) -- grounded against
+# real session-log room text (see the plan doc's §5 for the exact samples:
+# "The Bakery"/"The General Store"/"The Grunting Boar" never mention
+# Midgaard at all; "Market Square" does, in its description).
+- name: zone_seed_in_room_name
+  function: detect_seed_zone
+  name_desc: ["Inside The East Gate Of Midgaard", "You are standing just inside the east gate."]
+  expected: "Midgaard"
+
+- name: zone_seed_in_description_only
+  function: detect_seed_zone
+  name_desc: ["Market Square", "You are standing on the market square, the famous Square of Midgaard."]
+  expected: "Midgaard"
+
+- name: zone_seed_absent_for_unrelated_shop
+  function: detect_seed_zone
+  name_desc: ["The Bakery", "You are standing inside the small bakery. A sweet scent of danish and fine bread fills the room."]
+  expected: null
+
+# needs_management_plan §4: shop("list") stock parsing -- grounded in real
+# session-log samples (a bar, a bakery). Leading "A "/"An " is stripped for
+# storage identity (§4).
+- name: shop_stock_drinks
+  function: parse_shop_stock
+  raw_text: " ##   Available   Item                                               Cost\r\n----------------------------------------------------------------------------\r\n  1)  Unlimited   A bottle of local speciality                         22\r\n  2)  Unlimited   A bottle of firebreather                             56\r\n  3)  Unlimited   A bottle of ale                                      11\r\n  4)  Unlimited   A bottle of beer                                     22\r\n  5)  Unlimited   A barrel of beer                                    339\r\n\x1b[0;00m\r\n62H 100M 85V (motd) > "
+  expected: ["bottle of local speciality", "bottle of firebreather", "bottle of ale", "bottle of beer", "barrel of beer"]
+
+- name: shop_stock_food
+  function: parse_shop_stock
+  raw_text: " ##   Available   Item                                               Cost\r\n----------------------------------------------------------------------------\r\n  1)  Unlimited   A danish pastry                                       7\r\n  2)  Unlimited   A bread                                              14\r\n  3)  Unlimited   A waybread                                           72\r\n\x1b[0;00m\r\n72H 100M 89V (motd) > "
+  expected: ["danish pastry", "bread", "waybread"]
+
+# needs_management_plan §4/§5: classify_consumable -- grounded against real
+# shop listings from both a bar/bakery (food/drink) and a general store
+# (correctly unclassified, not guessed).
+- name: classify_consumable_cases
+  function: classify_consumable_cases
+  cases:
+    - name: "bottle of local speciality"
+      expected: drink
+    - name: "barrel of beer"
+      expected: drink
+    - name: "danish pastry"
+      expected: food
+    - name: "bread"
+      expected: food
+    - name: "waybread"
+      expected: food
+    - name: "cashcard"
+      expected: null
+    - name: "lantern"
+      expected: null
+
+# needs_management_plan §6: check("inventory") parsing -- grounded in a
+# real transcript.
+- name: inventory_carrying
+  function: parse_inventory
+  raw_text: "You are carrying:\r\na bottle\r\n\x1b[0ma bottle\r\n\x1b[0ma bottle\r\n\x1b[0mthe smelly hide of the Minotaur\r\n\x1b[0mthe horns of the Minotaur\r\n\x1b[0ma shiny newbie dagger ..It has a soft glowing aura!\r\n\x1b[0ma brightly glowing jar ..It has a soft glowing aura!\r\n\x1b[0m\r\n62H 100M 90V (motd) > "
+  expected: ["a bottle", "a bottle", "a bottle", "the smelly hide of the Minotaur", "the horns of the Minotaur", "a shiny newbie dagger ..It has a soft glowing aura!", "a brightly glowing jar ..It has a soft glowing aura!"]

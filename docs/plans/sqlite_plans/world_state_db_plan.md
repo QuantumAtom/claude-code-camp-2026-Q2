@@ -1,8 +1,10 @@
 # World-State SQLite DB — Design Plan (week3_capable)
 
-Status: **DRAFT — awaiting review.** No code has been written yet. This document
-covers schema, write-back design, migration approach, and visualization
-approach per your request.
+Status: **APPROVED — ready to implement.** No code has been written yet. This
+document covers schema, write-back design, migration approach, and
+visualization approach per your request. All open questions from §11 are
+now resolved (see "Decisions" at the end of that section); the recommended
+option was taken in every case.
 
 ## 1. Motivation (from Week 2 telemetry)
 
@@ -76,6 +78,43 @@ finds it already there.
 added to a `week3_capable/.gitignore` — still runtime state, not source, so
 still excluded from git regardless of which language wrote to it last.
 
+### 2a. Bootstrapping the package roots
+
+Resolves open question #3. `week3_capable/python/boukensha/` and
+`week3_capable/ruby/lib/boukensha/` start as a **full one-time copy** of
+`week1_baseline/python/12_context/boukensha/` and
+`week1_baseline/ruby/12_context/lib/boukensha/` respectively — not just the
+`world/` subpackage, the entire framework (`agent.py`/`.rb`, `client.py`/`.rb`,
+every backend, `registry.py`/`.rb`, `tools/`, `mcp_client.py`,
+`mcp_servers/`, `logger.py`/`.rb`, `telemetry.py`/`conversation_span_processor.rb`,
+`tui.py`/`.rb`, `repl.py`/`.rb` — everything currently in `12_context`), since
+that's what `12_context` already is: a complete, working agent, not a
+step-specific diff.
+
+After that copy, the two trees are **fully independent** — no shared imports,
+no path back into `week1_baseline`, no automatic sync in either direction.
+Two things carry over as file references rather than copies, since they're
+already shared, language-agnostic assets outside any step's `boukensha/`
+tree:
+- `week0_explore/mud_manager/` — same `sys.path` insert pattern
+  (`tools/mud.py`) that every step from 10 onward already uses; Ruby's
+  Gemfile `path:` dependency needs its relative depth adjusted for the new
+  location (`week1_baseline/ruby/12_context/Gemfile` uses
+  `"../../../week0_explore/mud_manager"`; `week3_capable/ruby/Gemfile` is one
+  level shallower, so `"../../week0_explore/mud_manager"`).
+- `.boukensha/settings.yaml`/`.env` at the repo root — unchanged, both copies
+  read the same config the same way `12_context` already does.
+
+**Why a separate directory instead of extending `12_context` in place** (the
+way `week2`'s OpenTelemetry work was added directly into `12_context` — see
+`docs/journal/2_week2.md`): this addition is substantially larger (schema,
+dual-language write-back, parser, migrations, a visualization script) than
+telemetry hooks were, and `week1_baseline` is meant to represent a
+checkpoint. Forking to `week3_capable` keeps `12_context` intact as a known-
+working revert point if anything about the world-state design needs to be
+rolled back, at the cost of the two `boukensha/` trees diverging from this
+point forward with no shared maintenance.
+
 ## 3. Schema DDL
 
 Single file, single `.db`, shared by both languages (per §2). `PRAGMA
@@ -140,7 +179,9 @@ CREATE TABLE IF NOT EXISTS location_items (
 
 CREATE TABLE IF NOT EXISTS weapons (
     weapon_id  INTEGER PRIMARY KEY AUTOINCREMENT,
-    name       TEXT NOT NULL UNIQUE   -- e.g. "short sword"; "unarmed" is a real row too, see §8
+    name       TEXT NOT NULL UNIQUE   -- any damage source: a melee weapon ("short sword"), a
+                                       -- bare-handed row ("fists"), a skill ("kick"), or a spell/
+                                       -- magic item name — see §8
 );
 
 CREATE TABLE IF NOT EXISTS mob_weapon_stats (
@@ -493,43 +534,87 @@ this fight." Per your follow-up: rather than only reading qualitative text,
 track real combat outcomes and turn *those* into a number, without ever
 fabricating an HP integer out of prose (same principle as §7's HP call).
 
-**The core idea:** every `attack`/`skill_strike` result is parseable as
-either a landed hit or a miss (§4's grounded examples), and a kill is its
-own unambiguous message (`"The small bat is dead!  R.I.P."`). So instead of
-guessing at a mob's current HP, count how many landed hits it actually took
-to kill mobs of this type in the past, average that, and compare the
-current fight's landed-hit count against the average. That's a real,
-empirically-grounded estimate, not an inference from adjectives.
+**The core idea:** every damage-capable action's result is parseable as
+either a landed hit or a miss (§4's grounded examples for melee), and a
+kill is its own unambiguous message (`"The small bat is dead!  R.I.P."`).
+So instead of guessing at a mob's current HP, count how many landed hits it
+actually took to kill mobs of this type in the past, average that, and
+compare the current fight's landed-hit count against the average. That's a
+real, empirically-grounded estimate, not an inference from adjectives.
 
-**Why this has to be weapon-aware:** a short sword and a dagger do
-different damage, so "sewer rats take ~6 hits" is only true for whatever
-weapon produced that average. Mixing weapons into one running total would
-make the estimate wrong in a way that's worse than not having one. Per your
-point, the estimate needs to be tracked per **(mob, weapon)** pair — same
-identity-by-name model as mobs/items (§3's `weapons` table, `mob_weapon_stats`
-junction table), grounded in the fact that `wield` results name the weapon
-explicitly (`"You wield a short sword in your right hand."`, §4).
+**Why this has to be weapon-aware — and why "weapon" means more than
+melee weapons:** a short sword and a dagger do different damage, so "sewer
+rats take ~6 hits" is only true for whatever dealt that damage. Per your
+follow-up: **anything that can damage a mob is a weapon or pseudo-weapon,
+tracked as its own identity** — the same `weapons` table and
+`mob_weapon_stats` junction (§3) that hold "short sword" also hold every
+other distinct damage source, each with its own running average:
+
+| Action | Weapon/pseudo-weapon identity | Where the name comes from |
+|---|---|---|
+| `attack`, weapon wielded | the wielded weapon (e.g. `"short sword"`) | `current_weapon_id`, session state set by the last successful `wield`/`equip_item` result (§4: `"You wield a short sword..."`) |
+| `attack`, nothing wielded | a fixed `"fists"` row | no per-call arg — bare-handed `attack` doesn't name a technique, so this is the one fixed pseudo-weapon name in the design |
+| `skill_strike` | the skill's own name (e.g. `"kick"`) | **directly from the tool call's `args`** (e.g. `args["skill"]`) — no session state and no prose-parsing needed for identity, only the result text needs parsing, for landed/missed/kill (§4-style). Kicks and punches (the `"fists"` row above) are therefore always separate rows, never merged — and any future skill (a different kick-like or grapple-like skill) gets its own row automatically the same way, with no extra code per skill. |
+| `cast_spell` | the spell's own name (e.g. `"magic missile"`) | directly from `args["spell"]` (or equivalent), same as `skill_strike` — **only** recorded when the result indicates the spell dealt damage to a mob; non-offensive spells (heal, bless, buffs, etc.) are not attacks and don't touch `mob_weapon_stats` at all |
+| `use_magic_item` | the item's own name (e.g. a damaging wand) | directly from `args["item"]` (or equivalent), same gating as `cast_spell` — only damage-dealing uses count |
+
+This falls directly out of §3's identity-by-name model (`get_or_create_weapon(conn, name)` already works for any of these — a melee weapon, `"fists"`, `"kick"`, or a spell name are all just rows in the same table, no schema change needed) and is a strict generalization of the original "unarmed" design: instead of one shared `"unarmed"` catch-all, **every distinct technique/spell/item gets its own name-identified row**, so a kick's stats can never bleed into a punch's, a sword's, or a spell's, and vice versa.
+
+**Grounding gap, flagged honestly, and why it splits in two:** unlike melee
+`attack` (§4 has real sampled hit/miss/kill text), no `skill_strike`,
+`cast_spell`, or `use_magic_item` result text has actually been pulled from
+`.boukensha/sessions/*.jsonl` yet — §4's samples only cover melee. That gap
+isn't the same size for all three, discussed and settled as follows:
+
+- **`skill_strike` (kick):** no blocker. The existing `dummy` character
+  (Soldier class, per the live `10_standard_tool_library` run) already has
+  kick available — real `skill_strike` output can be sampled from ordinary
+  play with the account that already exists, the same way §4's melee
+  samples were pulled. This should happen before/during implementation, not
+  deferred.
+- **`cast_spell` / `use_magic_item` (damage-dealing):** genuinely blocked
+  right now — **there is no mage (or other spellcasting-class) account set
+  up on this MUD yet**, so no real `cast_spell` output exists anywhere to
+  sample. Decision: implement the *identity* resolution and schema/store
+  support for spells now regardless (§8's table, `get_or_create_weapon`) —
+  it's structured data from `args`, no prose-parsing risk, and costs nothing
+  to have ready. The landed/missed/kill *text parser* for `cast_spell`/
+  `use_magic_item` is explicitly **deferred** until a mage-class account
+  exists and real output can be sampled — not a redesign later, just adding
+  one more parser function against the same store functions once the data
+  exists. Creating that account is an operational step outside this plan's
+  scope, not a design question; nothing here blocks on it.
+
+Same "ground it in real output, don't guess" rule this whole document
+follows elsewhere — the difference between the two cases above is purely
+*whether the account needed to generate that real output currently exists*.
 
 **Session state** (mirrors §5's `current_location_id` — transient module
 state, not schema, since it's reconstructable from the next `wield`/attack):
-- `current_weapon_id` — set on every successfully-parsed `wield` result.
-  Bare-handed and `skill_strike` attacks (e.g. a kick) are tracked against a
-  dedicated `weapons` row named `"unarmed"` rather than whatever happens to
-  be wielded at the time, so a kick doesn't get folded into a sword's stats.
-  Finer-grained per-skill tracking (kick vs. some future skill, each with
-  their own damage profile) is a possible later refinement, not needed yet
-  since `skill_strike` is the only skill attack seen in the sampled logs.
+- `current_weapon_id` — set on every successfully-parsed `wield`/`equip_item`
+  result; only consulted for plain `attack` calls (see table above).
+  `skill_strike`/`cast_spell`/`use_magic_item` never read or write this —
+  their identity comes from their own call's `args`, independent of
+  whatever's currently wielded.
 - `current_fight_mob_id` / `current_fight_hits_landed` — reset to
   none/zero whenever a fight starts against a not-currently-tracked mob,
   and cleared when that mob dies, the player flees, or the player leaves
-  the room (moves away without a kill).
+  the room (moves away without a kill). Unchanged by which action type is
+  landing the hits — a fight can mix a kick, two sword swings, and a spell
+  against the same mob, and each contributes to its own `(mob, weapon)`
+  pair while `current_fight_hits_landed` keeps counting total hits landed
+  in the fight for the mid-fight estimate below.
 
-**Write-back on every `attack`/`skill_strike` result:**
-1. Parse landed vs. missed (§4).
-2. If landed: increment `mob_weapon_stats.hits_landed_total` for
-   `(current_fight_mob_id, current_weapon_id)`, and increment the in-session
+**Write-back on every `attack`/`skill_strike`/`cast_spell`/`use_magic_item`
+result** (the last two gated to damage-dealing uses only, per the table
+above):
+1. Resolve weapon/pseudo-weapon identity per the table above.
+2. Parse landed vs. missed (§4 for melee; a grounding pass needed for the
+   other three, per the gap noted above).
+3. If landed: increment `mob_weapon_stats.hits_landed_total` for
+   `(current_fight_mob_id, weapon_id)`, and increment the in-session
    `current_fight_hits_landed` counter.
-3. If the same result also contains the death message: increment
+4. If the same result also contains the death message: increment
    `mob_weapon_stats.kills_total` for that same pair, then clear the
    session's current-fight state.
 
@@ -632,29 +717,86 @@ New dependencies to add:
   Gemfile alongside the existing `dotenv`/`mud_manager`/`opentelemetry-*`
   gems.
 
-## 11. Open questions for you
+## 11. Decisions
 
-1. Confirm the mob/item update rules in §7 (especially: HP stays NULL absent
-   a real number in the text — no inference from qualitative phrases).
-2. OK with Graphviz (`dot` binary + `graphviz` pip package) as a new system
-   dependency for the visualization script, or would you rather I stick to
-   pure-Python (networkx + matplotlib) even though the layout will be less
-   clean?
-3. Any preference on where `week3_capable`'s Python and Ruby package roots
-   should actually live before I start creating files there? I've assumed
-   `week3_capable/python/boukensha/` and `week3_capable/ruby/lib/boukensha/`
-   per §2, mirroring `week1_baseline`'s split, but that dir is currently
-   empty and unopinionated.
-4. OK with the shared-fixture approach in §6b (`fixtures/parser_cases.yaml`
-   loaded by both test suites) as the drift-prevention mechanism between the
-   two parser implementations, or would you rather handle that differently?
-5. OK with §8's weapon-aware hits-to-kill estimate as the "real" condition
-   signal, with §3's qualitative `location_mobs.condition` phrase as the
-   cold-start fallback until enough kills exist per (mob, weapon) pair?
-6. §8 suggests not trusting the numeric estimate until `kills_total >= 3`
-   for a given (mob, weapon) pairing, falling back to the phrase field
-   below that. Fine with that threshold (or with "any data beats no data,"
-   i.e. trust it starting at `kills_total >= 1`)?
-7. OK with unarmed/`skill_strike` attacks being tracked against a dedicated
-   `"unarmed"` `weapons` row rather than attributed to whatever's currently
-   wielded (§8)?
+**Review record:** every item below was reviewed with you directly, in a
+live back-and-forth conversation about this plan — none were silently
+auto-approved or skipped. Two different, and equally deliberate, things
+happened depending on the item:
+
+- **Items 2, 3, 7, 8** were decided by you directly, through explicit
+  back-and-forth: you picked Graphviz over networkx/matplotlib yourself
+  (§10), confirmed the `week3_capable` package-root approach and its
+  rationale yourself (§2a), then asked follow-up questions of your own
+  ("will it delineate kick", "will it consider magic attacks") that led to
+  you explicitly requesting the kick/punch split and the spell/magic-item
+  generalization (§8) — both of which changed the design from what was
+  originally proposed.
+- **Items 1, 4, 5, 6** were explicitly and knowingly delegated to my
+  discretion — your own words were "the rest of the questions, I leave to
+  your discretion, since I don't quite understand." That's still a real,
+  considered choice about each one (weighing whether to dig into the
+  tradeoffs yourself vs. trust the recommended default), not an oversight —
+  the recommended option was taken in every case, with the reasoning for
+  each spelled out below so it's checkable after the fact.
+
+No changes to the design in §3–§10 were needed to act on any of these
+beyond what's already reflected there.
+
+1. **§7's mob/item update rules — confirmed as written**, including
+   `hp` staying `NULL` absent a real numeric value in the text (no inference
+   from qualitative phrases like "in excellent condition").
+2. **Graphviz, not networkx/matplotlib** — `dot` binary +
+   `graphviz` pip package, per §10. Install commands:
+   ```bash
+   sudo apt-get update && sudo apt-get install -y graphviz   # system `dot` binary
+   pip install graphviz                                       # into the shared repo-root .venv
+   ```
+   `graphviz` goes into `week3_capable/python/requirements.txt` once that
+   file exists (a new file, not an addition to any `week1_baseline`
+   requirements file — `week3_capable` maintains its own dependency set from
+   here on, per §2a).
+3. **Package roots confirmed** — see new §2a above: a one-time full copy of
+   `week1_baseline/{python/12_context/boukensha, ruby/12_context/lib/boukensha}`
+   into `week3_capable/{python/boukensha, ruby/lib/boukensha}`, fully
+   independent afterward.
+4. **Shared-fixture approach confirmed** — `fixtures/parser_cases.yaml`,
+   loaded by both language's test suites, as designed in §6b.
+5. **Weapon-aware hits-to-kill estimate confirmed** as the "real" condition
+   signal, with §3's qualitative `location_mobs.condition` as the cold-start
+   fallback, per §8.
+6. **Threshold set at `kills_total >= 3`** before trusting the numeric
+   estimate over the qualitative fallback (the plan's own recommended
+   default in §8, over the looser "any data beats no data" /
+   `kills_total >= 1` alternative) — a 1-2 sample average is noisy enough
+   (variance from crits/misses) that trusting it early risks telling the
+   agent a mob is "almost dead" off a single lucky/unlucky fight, which
+   fabricates the same false precision §7 explicitly avoids for HP. This is
+   a plain constant in `estimate_condition()` (§8) — trivial to tune later
+   if 3 turns out too conservative or too loose in practice.
+7. **Unarmed attacks split by technique, not pooled into one `"unarmed"`
+   row** — superseded from the original design during follow-up review.
+   Bare-handed `attack` gets a fixed `"fists"` row; every `skill_strike`
+   (kick, and any future skill) gets its own row named after that skill,
+   read directly from the tool call's `args`, per §8's table. Kicks and
+   punches are never merged.
+8. **"Anything that can damage a mob is a weapon or pseudo-weapon"
+   confirmed as the general principle** (follow-up refinement, added after
+   initial approval) — `cast_spell` and `use_magic_item` now feed
+   `mob_weapon_stats` the same way melee and skills do, identified by
+   spell/item name from `args`, gated to damage-dealing uses only (no
+   entry for heals/buffs/utility casts). Discussed and settled that the
+   grounding gap here splits in two (§8): `skill_strike`/kick has no
+   blocker (the existing `dummy` Soldier account can generate real samples
+   any time), but `cast_spell`/`use_magic_item` text parsing is genuinely
+   blocked — **no mage/spellcasting-class account exists on this MUD yet**,
+   so there's no real `cast_spell` output anywhere to sample. Resolution:
+   build the identity/schema/store side for spells now (no risk, structured
+   `args`), defer only the spell-text parser until a mage account exists
+   and real output can be pulled — creating that account is an operational
+   step outside this plan, not a design blocker.
+
+Next step: implement per §2a (bootstrap the package copy), §3 (apply
+`schema.sql`), then §6 (parser/store modules and the registry/dispatch
+hook), in that order — each step is runnable/testable on its own before the
+next begins.

@@ -8,6 +8,11 @@ tasks:
     model: "claude-sonnet-4-6"
     prompt_override:
         system: true
+
+    #provider: zai
+    #model: "glm-5.2"
+    #prompt_override:
+      #system: true
 mud:
   host: localhost
   port: 4000

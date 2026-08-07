@@ -1,0 +1,7 @@
+PyYAML
+python-dotenv
+mcp>=1.28.1
+textual
+opentelemetry-sdk
+opentelemetry-exporter-otlp-proto-http
+graphviz

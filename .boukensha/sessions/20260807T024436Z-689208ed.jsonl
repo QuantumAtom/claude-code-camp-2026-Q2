@@ -1,0 +1,1 @@
+{"phase":"session_start","max_iterations":25,"max_turn_tokens":60000,"max_output_tokens":1024,"context_window":200000,"model":"claude-sonnet-4-6","provider":"anthropic","session_id":"20260807T024436Z-689208ed","at":"2026-08-06T21:44:36-05:00"}
